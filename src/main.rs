@@ -1,7 +1,6 @@
 use crate::engine::Game;
 use crate::grid::Grid;
 use crate::renderer::Renderer;
-use regex::RegexBuilder;
 
 mod engine;
 mod grid;
