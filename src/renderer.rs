@@ -1,4 +1,5 @@
-use crate::grid::{Cell, Grid};
+use crate::grid::Cell::Empty;
+use crate::grid::Grid;
 use crate::snake::Snake;
 use std::io::Write;
 
@@ -13,20 +14,29 @@ impl Renderer {
     }
     pub fn render(&self, grid: &Grid, snake: &Snake) {
         self.clear();
-        for y in 0..grid.height() {
+        let mut y = 0;
+        while y < grid.height() {
             for x in 0..grid.width() {
-                if snake.body().contains(&(x, y)) {
-                    print!("■")
+                let top = is_filled(grid, snake, x, y);
+                let bottom = if y + 1 < grid.height() {
+                    is_filled(grid, snake, x, y + 1)
                 } else {
-                    match grid.cell(x, y) {
-                        Cell::Empty => print!(" "),
-                        Cell::Wall => print!("#"),
-                        Cell::Food => print!("*"),
-                    }
+                    false
+                };
+                match (top, bottom) {
+                    (false, false) => print!(" "),
+                    (true, false) => print!("▀"),
+                    (false, true) => print!("▄"),
+                    (true, true) => print!("█"),
                 }
             }
+            y += 2;
             std::io::stdout().flush().unwrap();
             print!("\r\n")
         }
     }
+}
+
+fn is_filled(grid: &Grid, snake: &Snake, x: i32, y: i32) -> bool {
+    snake.body().contains(&(x, y)) || *grid.cell(x, y) != Empty
 }
