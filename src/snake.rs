@@ -25,7 +25,7 @@ impl Snake {
     pub fn head(&self) -> (i32, i32) {
         self.body[0]
     }
-    pub fn body(&self) -> &Vec<(i32, i32)> {
+    pub fn body(&self) -> &[(i32, i32)] {
         &self.body
     }
     pub fn move_snake(&mut self) {
