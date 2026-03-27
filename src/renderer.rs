@@ -31,12 +31,12 @@ impl Renderer {
                 }
             }
             y += 2;
-            std::io::stdout().flush().unwrap();
             print!("\r\n")
         }
+        std::io::stdout().flush().expect("could not flush stdout");
     }
 }
 
 fn is_filled(grid: &Grid, snake: &Snake, x: i32, y: i32) -> bool {
-    snake.body().contains(&(x, y)) || *grid.cell(x, y) != Empty
+    snake.occupies(x, y) || *grid.cell(x, y) != Empty
 }

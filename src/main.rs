@@ -4,6 +4,7 @@ use crate::renderer::Renderer;
 
 mod game;
 mod grid;
+mod raw_mode_guard;
 mod renderer;
 mod snake;
 

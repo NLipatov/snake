@@ -1,11 +1,11 @@
 use crate::game::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
 use crate::grid::Cell::{Empty, Food, Wall};
 use crate::grid::Grid;
+use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
 use crossterm::event;
 use crossterm::event::{Event, KeyCode};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use rand::{RngExt, rngs};
 use std::time::Duration;
 
@@ -37,10 +37,8 @@ impl Game {
         }
     }
     pub fn start(&mut self) {
-        enable_raw_mode().unwrap();
-        let result = self.run_loop();
-        disable_raw_mode().unwrap();
-        result
+        let _rmg = RawModeGuard::new();
+        self.run_loop();
     }
     fn run_loop(&mut self) {
         loop {
@@ -80,10 +78,10 @@ impl Game {
         }
     }
     fn read_key(&self) -> Option<KeyCode> {
-        if event::poll(Duration::from_millis(0)).unwrap() {
-            if let Event::Key(key) = event::read().unwrap() {
-                return Some(key.code);
-            }
+        if event::poll(Duration::from_millis(0)).expect("could not poll event")
+            && let Event::Key(key) = event::read().expect("could not read key event")
+        {
+            return Some(key.code);
         }
         None
     }
@@ -98,18 +96,14 @@ impl Game {
         }
     }
     fn should_spawn_food(&mut self) -> bool {
-        let roll = self.rng.random_range(0..100);
-        if roll >= self.food_spawn_probability {
-            return false;
-        }
-        true
+        self.rng.random_range(0..100) < self.food_spawn_probability
     }
     fn spawn_food(&mut self) {
         let max_x = self.grid.width();
         let max_y = self.grid.height();
         let x = self.rng.random_range(0..max_x);
         let y = self.rng.random_range(0..max_y);
-        if *self.grid.cell(x, y) == Empty {
+        if *self.grid.cell(x, y) == Empty && !self.snake.occupies(x, y) {
             self.grid.change_cell(x, y, Food);
         }
     }

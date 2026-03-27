@@ -56,4 +56,7 @@ impl Snake {
         let head = self.head();
         self.body()[1..].contains(&head)
     }
+    pub fn occupies(&self, x: i32, y: i32) -> bool {
+        self.body.contains(&(x, y))
+    }
 }
