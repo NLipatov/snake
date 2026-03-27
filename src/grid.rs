@@ -1,4 +1,11 @@
-use crate::grid::Cell::{Empty, Wall};
+use crate::grid::Cell::{Empty, Food, Wall};
+
+#[derive(PartialEq, Eq)]
+pub enum Cell {
+    Empty,
+    Wall,
+    Food,
+}
 
 pub struct Grid {
     width: i32,
@@ -36,11 +43,9 @@ impl Grid {
     pub fn change_cell(&mut self, x: i32, y: i32, cell: Cell) {
         self.cells[y as usize * self.width as usize + x as usize] = cell;
     }
-}
-
-#[derive(PartialEq, Eq)]
-pub enum Cell {
-    Empty,
-    Wall,
-    Food,
+    pub fn on_food_consumed(&mut self, x: i32, y: i32) {
+        if self.cells[y as usize * self.width as usize + x as usize] == Food {
+            self.cells[y as usize * self.width as usize + x as usize] = Empty;
+        }
+    }
 }

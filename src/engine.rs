@@ -70,6 +70,7 @@ impl Game {
             }
             if *self.grid.cell(x, y) == Food {
                 self.snake.grow();
+                self.grid.on_food_consumed(x, y)
             }
             if self.should_spawn_food() {
                 self.spawn_food();
