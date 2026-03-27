@@ -1,6 +1,6 @@
 # snake 🐍
 
-A small terminal Snake game written in Rust 🦀
+A small terminal Snake game written by hand in Rust 🦀
 
 ## Run ▶️
 
