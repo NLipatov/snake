@@ -1,8 +1,8 @@
-use crate::engine::Game;
+use crate::game::Game;
 use crate::grid::Grid;
 use crate::renderer::Renderer;
 
-mod engine;
+mod game;
 mod grid;
 mod renderer;
 mod snake;
@@ -13,4 +13,5 @@ fn main() {
     let mut game = Game::new(grid, snake, Renderer::new(), 2);
     game.start();
     println!("Game over!");
+    println!("You've scored: {}", game.score());
 }

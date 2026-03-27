@@ -1,4 +1,4 @@
-use crate::engine::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
+use crate::game::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
 use crate::grid::Cell::{Empty, Food, Wall};
 use crate::grid::Grid;
 use crate::renderer::Renderer;
@@ -112,5 +112,8 @@ impl Game {
         if *self.grid.cell(x, y) == Empty {
             self.grid.change_cell(x, y, Food);
         }
+    }
+    pub fn score(&self) -> usize {
+        self.snake.body().len().saturating_sub(1)
     }
 }
