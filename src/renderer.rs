@@ -1,7 +1,27 @@
-use crate::grid::Cell::Empty;
-use crate::grid::Grid;
+use crate::grid::GridCell::Empty;
+use crate::grid::{Grid, GridCell};
 use crate::snake::Snake;
 use std::io::Write;
+
+enum RenderCell {
+    Empty,
+    Food,
+    Wall,
+    Snake,
+}
+
+impl RenderCell {
+    fn new(grid: &Grid, snake: &Snake, x: i32, y: i32) -> RenderCell {
+        if snake.occupies(x, y) {
+            return RenderCell::Snake;
+        }
+        match grid.cell(x, y) {
+            Empty => RenderCell::Empty,
+            GridCell::Food => RenderCell::Food,
+            GridCell::Wall => RenderCell::Wall,
+        }
+    }
+}
 
 pub struct Renderer {}
 
@@ -17,17 +37,26 @@ impl Renderer {
         let mut y = 0;
         while y < grid.height() {
             for x in 0..grid.width() {
-                let top = is_filled(grid, snake, x, y);
+                let top = RenderCell::new(grid, snake, x, y);
                 let bottom = if y + 1 < grid.height() {
-                    is_filled(grid, snake, x, y + 1)
+                    RenderCell::new(grid, snake, x, y + 1)
                 } else {
-                    false
+                    RenderCell::Empty
                 };
                 match (top, bottom) {
-                    (false, false) => print!(" "),
-                    (true, false) => print!("▀"),
-                    (false, true) => print!("▄"),
-                    (true, true) => print!("█"),
+                    (RenderCell::Empty, RenderCell::Empty) => print!(" "),
+                    (
+                        RenderCell::Food | RenderCell::Wall | RenderCell::Snake,
+                        RenderCell::Empty,
+                    ) => print!("▀"),
+                    (
+                        RenderCell::Empty,
+                        RenderCell::Food | RenderCell::Wall | RenderCell::Snake,
+                    ) => print!("▄"),
+                    (
+                        RenderCell::Food | RenderCell::Wall | RenderCell::Snake,
+                        RenderCell::Food | RenderCell::Wall | RenderCell::Snake,
+                    ) => print!("█"),
                 }
             }
             y += 2;
@@ -35,8 +64,4 @@ impl Renderer {
         }
         std::io::stdout().flush().expect("could not flush stdout");
     }
-}
-
-fn is_filled(grid: &Grid, snake: &Snake, x: i32, y: i32) -> bool {
-    snake.occupies(x, y) || *grid.cell(x, y) != Empty
 }

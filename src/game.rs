@@ -1,5 +1,5 @@
 use crate::game::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
-use crate::grid::Cell::{Empty, Food, Wall};
+use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::Grid;
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;

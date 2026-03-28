@@ -1,7 +1,7 @@
-use crate::grid::Cell::{Empty, Food, Wall};
+use crate::grid::GridCell::{Empty, Food, Wall};
 
 #[derive(PartialEq, Eq)]
-pub enum Cell {
+pub enum GridCell {
     Empty,
     Wall,
     Food,
@@ -10,7 +10,7 @@ pub enum Cell {
 pub struct Grid {
     width: i32,
     height: i32,
-    cells: Vec<Cell>,
+    cells: Vec<GridCell>,
 }
 
 impl Grid {
@@ -37,10 +37,10 @@ impl Grid {
     pub fn width(&self) -> i32 {
         self.width
     }
-    pub fn cell(&self, x: i32, y: i32) -> &Cell {
+    pub fn cell(&self, x: i32, y: i32) -> &GridCell {
         &self.cells[y as usize * self.width as usize + x as usize]
     }
-    pub fn change_cell(&mut self, x: i32, y: i32, cell: Cell) {
+    pub fn change_cell(&mut self, x: i32, y: i32, cell: GridCell) {
         self.cells[y as usize * self.width as usize + x as usize] = cell;
     }
     pub fn on_food_consumed(&mut self, x: i32, y: i32) {
