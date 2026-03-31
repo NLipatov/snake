@@ -39,6 +39,16 @@ fn change_cell_updates_cell_value() {
 }
 
 #[test]
+fn change_cell_can_overwrite_existing_value() {
+    let mut grid = Grid::new(5, 5);
+    grid.change_cell(2, 2, GridCell::Food);
+
+    grid.change_cell(2, 2, GridCell::Empty);
+
+    assert_eq!(grid.cell(2, 2), &GridCell::Empty);
+}
+
+#[test]
 fn on_food_consumed_clears_food_cell() {
     let mut grid = Grid::new(5, 5);
     grid.change_cell(2, 2, GridCell::Food);

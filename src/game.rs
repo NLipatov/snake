@@ -133,7 +133,10 @@ mod tests {
     fn key_to_command_maps_arrow_keys_and_escape() {
         let game = game_with_probability(0);
 
-        assert!(matches!(game.key_to_command(KeyCode::Up), Some(Command::SnakeMoveUp)));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Up),
+            Some(Command::SnakeMoveUp)
+        ));
         assert!(matches!(
             game.key_to_command(KeyCode::Down),
             Some(Command::SnakeMoveDown)
@@ -146,7 +149,10 @@ mod tests {
             game.key_to_command(KeyCode::Right),
             Some(Command::SnakeMoveRight)
         ));
-        assert!(matches!(game.key_to_command(KeyCode::Esc), Some(Command::Escape)));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Esc),
+            Some(Command::Escape)
+        ));
     }
 
     #[test]

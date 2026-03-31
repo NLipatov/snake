@@ -107,7 +107,9 @@ impl RenderCell {
 
 #[cfg(test)]
 mod tests {
-    use super::{Color, RenderCell, BG_BRIGHT_BLACK, BG_GREEN, BG_RED, FG_BRIGHT_BLACK, FG_GREEN, FG_RED};
+    use super::{
+        BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_GREEN, FG_RED, RenderCell,
+    };
     use crate::grid::{Grid, GridCell};
     use crate::snake::Snake;
 
@@ -117,7 +119,10 @@ mod tests {
         grid.change_cell(2, 2, GridCell::Food);
         let snake = Snake::new((2, 2));
 
-        assert!(matches!(RenderCell::new(&grid, &snake, 2, 2), RenderCell::Snake));
+        assert!(matches!(
+            RenderCell::new(&grid, &snake, 2, 2),
+            RenderCell::Snake
+        ));
     }
 
     #[test]
@@ -126,9 +131,18 @@ mod tests {
         let snake = Snake::new((1, 1));
         grid.change_cell(2, 2, GridCell::Food);
 
-        assert!(matches!(RenderCell::new(&grid, &snake, 2, 2), RenderCell::Food));
-        assert!(matches!(RenderCell::new(&grid, &snake, 0, 0), RenderCell::Wall));
-        assert!(matches!(RenderCell::new(&grid, &snake, 3, 3), RenderCell::Empty));
+        assert!(matches!(
+            RenderCell::new(&grid, &snake, 2, 2),
+            RenderCell::Food
+        ));
+        assert!(matches!(
+            RenderCell::new(&grid, &snake, 0, 0),
+            RenderCell::Wall
+        ));
+        assert!(matches!(
+            RenderCell::new(&grid, &snake, 3, 3),
+            RenderCell::Empty
+        ));
     }
 
     #[test]

@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.gz
+            bin_name: snake
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive_ext: tar.gz
+            bin_name: snake
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+            bin_name: snake.exe
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            archive_ext: zip
+            bin_name: snake.exe
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            archive_ext: tar.gz
+            bin_name: snake
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            archive_ext: tar.gz
+            bin_name: snake
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install stable
+          rustup default stable
+          rustup target add "${{ matrix.target }}"
+
+      - name: Build release binary
+        shell: bash
+        run: cargo build --release --target "${{ matrix.target }}"
+
+      - name: Package release archive on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          asset_name="snake-${RELEASE_TAG}-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          mkdir -p dist
+          tar -C target/${{ matrix.target }}/release -czf "dist/${asset_name}" "${{ matrix.bin_name }}"
+
+      - name: Package release archive on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $assetName = "snake-$env:RELEASE_TAG-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" -DestinationPath "dist/$assetName"
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: bash
+        run: |
+          gh release view "${RELEASE_TAG}" >/dev/null 2>&1 || \
+            gh release create "${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
+              --generate-notes
+          gh release upload "${RELEASE_TAG}" dist/* --clobber

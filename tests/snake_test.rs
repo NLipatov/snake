@@ -64,6 +64,17 @@ fn snake_growth_keeps_previous_head_as_next_segment_after_move() {
 }
 
 #[test]
+fn snake_len_increases_with_each_growth() {
+    let mut snake = Snake::new((5, 5));
+
+    snake.grow();
+    snake.grow();
+    snake.grow();
+
+    assert_eq!(snake.len(), 4);
+}
+
+#[test]
 fn snake_cannot_reverse_from_right_to_left() {
     let mut snake = Snake::new((5, 5));
     snake.grow();
@@ -122,6 +133,13 @@ fn snake_cannot_reverse_from_down_to_up() {
 }
 
 #[test]
+fn new_snake_has_no_self_collision() {
+    let snake = Snake::new((2, 2));
+
+    assert!(!snake.has_self_collision());
+}
+
+#[test]
 fn snake_detects_self_collision() {
     let mut snake = Snake::new((2, 2));
 
@@ -141,6 +159,18 @@ fn snake_detects_self_collision() {
     snake.move_snake();
 
     assert!(snake.has_self_collision());
+}
+
+#[test]
+fn snake_can_form_a_corner_after_turning() {
+    let mut snake = Snake::new((2, 2));
+    snake.grow();
+    snake.move_snake();
+    snake.set_direction(Direction::Down);
+    snake.move_snake();
+
+    assert_eq!(snake.head(), (3, 3));
+    assert!(snake.occupies(3, 2));
 }
 
 #[test]
