@@ -1,7 +1,6 @@
 use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell};
 use crate::snake::Snake;
-use std::cmp::PartialEq;
 use std::io::Write;
 
 pub struct Renderer {}
@@ -63,7 +62,7 @@ const BG_GREEN: &'static str = "\x1b[42m";
 const BG_BRIGHT_BLACK: &'static str = "\x1b[100m";
 const RESET: &'static str = "\x1b[0m";
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct Color {
     fg: &'static str,
     bg: &'static str,
@@ -103,5 +102,58 @@ impl RenderCell {
                 bg: BG_GREEN,
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Color, RenderCell, BG_BRIGHT_BLACK, BG_GREEN, BG_RED, FG_BRIGHT_BLACK, FG_GREEN, FG_RED};
+    use crate::grid::{Grid, GridCell};
+    use crate::snake::Snake;
+
+    #[test]
+    fn render_cell_prefers_snake_over_grid_contents() {
+        let mut grid = Grid::new(5, 5);
+        grid.change_cell(2, 2, GridCell::Food);
+        let snake = Snake::new((2, 2));
+
+        assert!(matches!(RenderCell::new(&grid, &snake, 2, 2), RenderCell::Snake));
+    }
+
+    #[test]
+    fn render_cell_reads_food_wall_and_empty_from_grid() {
+        let mut grid = Grid::new(5, 5);
+        let snake = Snake::new((1, 1));
+        grid.change_cell(2, 2, GridCell::Food);
+
+        assert!(matches!(RenderCell::new(&grid, &snake, 2, 2), RenderCell::Food));
+        assert!(matches!(RenderCell::new(&grid, &snake, 0, 0), RenderCell::Wall));
+        assert!(matches!(RenderCell::new(&grid, &snake, 3, 3), RenderCell::Empty));
+    }
+
+    #[test]
+    fn to_color_returns_expected_palette() {
+        assert_eq!(
+            RenderCell::Food.to_color(),
+            Some(Color {
+                fg: FG_RED,
+                bg: BG_RED,
+            })
+        );
+        assert_eq!(
+            RenderCell::Snake.to_color(),
+            Some(Color {
+                fg: FG_GREEN,
+                bg: BG_GREEN,
+            })
+        );
+        assert_eq!(
+            RenderCell::Wall.to_color(),
+            Some(Color {
+                fg: FG_BRIGHT_BLACK,
+                bg: BG_BRIGHT_BLACK,
+            })
+        );
+        assert_eq!(RenderCell::Empty.to_color(), None);
     }
 }

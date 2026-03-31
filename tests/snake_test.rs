@@ -5,7 +5,7 @@ fn new_snake_starts_at_given_point() {
     let snake = Snake::new((5, 5));
 
     assert_eq!(snake.head(), (5, 5));
-    assert_eq!(snake.body(), &[(5, 5)]);
+    assert_eq!(snake.len(), 1);
     assert!(snake.occupies(5, 5));
 }
 
@@ -58,7 +58,9 @@ fn snake_growth_keeps_previous_head_as_next_segment_after_move() {
 
     snake.move_snake();
 
-    assert_eq!(snake.body(), &[(6, 5), (5, 5)]);
+    assert_eq!(snake.head(), (6, 5));
+    assert_eq!(snake.len(), 2);
+    assert!(snake.occupies(5, 5));
 }
 
 #[test]
@@ -69,7 +71,9 @@ fn snake_cannot_reverse_from_right_to_left() {
 
     snake.move_snake();
 
-    assert_eq!(snake.body(), &[(6, 5), (5, 5)]);
+    assert_eq!(snake.head(), (6, 5));
+    assert_eq!(snake.len(), 2);
+    assert!(snake.occupies(5, 5));
 }
 
 #[test]
@@ -82,7 +86,9 @@ fn snake_cannot_reverse_from_left_to_right() {
 
     snake.move_snake();
 
-    assert_eq!(snake.body(), &[(4, 5), (5, 5)]);
+    assert_eq!(snake.head(), (4, 5));
+    assert_eq!(snake.len(), 2);
+    assert!(snake.occupies(5, 5));
 }
 
 #[test]
@@ -96,7 +102,9 @@ fn snake_cannot_reverse_from_up_to_down() {
 
     snake.move_snake();
 
-    assert_eq!(snake.body(), &[(5, 4), (5, 5)]);
+    assert_eq!(snake.head(), (5, 4));
+    assert_eq!(snake.len(), 2);
+    assert!(snake.occupies(5, 5));
 }
 
 #[test]
@@ -108,7 +116,9 @@ fn snake_cannot_reverse_from_down_to_up() {
 
     snake.move_snake();
 
-    assert_eq!(snake.body(), &[(5, 6), (5, 5)]);
+    assert_eq!(snake.head(), (5, 6));
+    assert_eq!(snake.len(), 2);
+    assert!(snake.occupies(5, 5));
 }
 
 #[test]

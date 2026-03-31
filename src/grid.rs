@@ -1,6 +1,6 @@
 use crate::grid::GridCell::{Empty, Food, Wall};
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum GridCell {
     Empty,
     Wall,

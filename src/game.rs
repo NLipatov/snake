@@ -1,6 +1,6 @@
 use crate::game::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
-use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::Grid;
+use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
@@ -108,6 +108,85 @@ impl Game {
         }
     }
     pub fn score(&self) -> usize {
-        self.snake.body().len().saturating_sub(1)
+        self.snake.len().saturating_sub(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Command, Game};
+    use crate::grid::Grid;
+    use crate::renderer::Renderer;
+    use crate::snake::Snake;
+    use crossterm::event::KeyCode;
+
+    fn game_with_probability(food_spawn_probability: i32) -> Game {
+        Game::new(
+            Grid::new(8, 8),
+            Snake::new((3, 3)),
+            Renderer::new(),
+            food_spawn_probability,
+        )
+    }
+
+    #[test]
+    fn key_to_command_maps_arrow_keys_and_escape() {
+        let game = game_with_probability(0);
+
+        assert!(matches!(game.key_to_command(KeyCode::Up), Some(Command::SnakeMoveUp)));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Down),
+            Some(Command::SnakeMoveDown)
+        ));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Left),
+            Some(Command::SnakeMoveLeft)
+        ));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Right),
+            Some(Command::SnakeMoveRight)
+        ));
+        assert!(matches!(game.key_to_command(KeyCode::Esc), Some(Command::Escape)));
+    }
+
+    #[test]
+    fn key_to_command_ignores_unhandled_keys() {
+        let game = game_with_probability(0);
+
+        assert!(game.key_to_command(KeyCode::Enter).is_none());
+    }
+
+    #[test]
+    fn should_spawn_food_is_never_true_at_zero_percent() {
+        let mut game = game_with_probability(0);
+
+        for _ in 0..100 {
+            assert!(!game.should_spawn_food());
+        }
+    }
+
+    #[test]
+    fn should_spawn_food_is_always_true_at_hundred_percent() {
+        let mut game = game_with_probability(100);
+
+        for _ in 0..100 {
+            assert!(game.should_spawn_food());
+        }
+    }
+
+    #[test]
+    fn score_is_zero_for_new_snake() {
+        let game = game_with_probability(0);
+
+        assert_eq!(game.score(), 0);
+    }
+
+    #[test]
+    fn score_counts_growth_segments() {
+        let mut game = game_with_probability(0);
+        game.snake.grow();
+        game.snake.grow();
+
+        assert_eq!(game.score(), 2);
     }
 }

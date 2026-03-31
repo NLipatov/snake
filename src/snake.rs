@@ -25,9 +25,6 @@ impl Snake {
     pub fn head(&self) -> (i32, i32) {
         self.body[0]
     }
-    pub fn body(&self) -> &[(i32, i32)] {
-        &self.body
-    }
     pub fn move_snake(&mut self) {
         for i in (1..self.body.len()).rev() {
             self.body[i] = self.body[i - 1];
@@ -54,9 +51,12 @@ impl Snake {
     }
     pub fn has_self_collision(&self) -> bool {
         let head = self.head();
-        self.body()[1..].contains(&head)
+        self.body[1..].contains(&head)
     }
     pub fn occupies(&self, x: i32, y: i32) -> bool {
         self.body.contains(&(x, y))
+    }
+    pub fn len(&self) -> usize {
+        self.body.len()
     }
 }
