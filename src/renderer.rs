@@ -5,6 +5,12 @@ use std::io::Write;
 
 pub struct Renderer {}
 
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer {}
@@ -54,13 +60,13 @@ impl Renderer {
     }
 }
 
-const FG_RED: &'static str = "\x1b[31m";
-const FG_GREEN: &'static str = "\x1b[32m";
-const FG_BRIGHT_BLACK: &'static str = "\x1b[90m";
-const BG_RED: &'static str = "\x1b[41m";
-const BG_GREEN: &'static str = "\x1b[42m";
-const BG_BRIGHT_BLACK: &'static str = "\x1b[100m";
-const RESET: &'static str = "\x1b[0m";
+const FG_RED: &str = "\x1b[31m";
+const FG_GREEN: &str = "\x1b[32m";
+const FG_BRIGHT_BLACK: &str = "\x1b[90m";
+const BG_RED: &str = "\x1b[41m";
+const BG_GREEN: &str = "\x1b[42m";
+const BG_BRIGHT_BLACK: &str = "\x1b[100m";
+const RESET: &str = "\x1b[0m";
 
 #[derive(Debug, PartialEq)]
 struct Color {
