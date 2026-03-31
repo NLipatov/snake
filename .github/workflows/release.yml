@@ -34,7 +34,7 @@ jobs:
         with:
           command: release-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SNAKE_RELEASE_PLZ_TOKEN }}
 
   prepare-release:
     name: Prepare release
@@ -59,7 +59,7 @@ jobs:
       - name: Run release-plz release
         id: release
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SNAKE_RELEASE_PLZ_TOKEN }}
         shell: bash
         run: |
           release_output="$(release-plz release --git-token "$GITHUB_TOKEN" -o json)"
@@ -168,7 +168,7 @@ jobs:
 
       - name: Create or update GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          GH_TOKEN: ${{ secrets.SNAKE_RELEASE_PLZ_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
         shell: bash
         run: |
