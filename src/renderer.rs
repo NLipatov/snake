@@ -1,37 +1,8 @@
 use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell};
 use crate::snake::Snake;
+use std::cmp::PartialEq;
 use std::io::Write;
-
-enum RenderCell {
-    Empty,
-    Food,
-    Wall,
-    Snake,
-}
-
-impl RenderCell {
-    fn new(grid: &Grid, snake: &Snake, x: i32, y: i32) -> RenderCell {
-        if snake.occupies(x, y) {
-            return RenderCell::Snake;
-        }
-        match grid.cell(x, y) {
-            Empty => RenderCell::Empty,
-            GridCell::Food => RenderCell::Food,
-            GridCell::Wall => RenderCell::Wall,
-        }
-    }
-}
-
-const FG_BLACK: &'static str = "\x1b[30m";
-const FG_RED: &'static str = "\x1b[31m";
-const FG_GREEN: &'static str = "\x1b[32m";
-const FG_WHITE: &'static str = "\x1b[97m";
-const BG_BLACK: &'static str = "\x1b[40m";
-const BG_RED: &'static str = "\x1b[41m";
-const BG_GREEN: &'static str = "\x1b[42m";
-const BG_WHITE: &'static str = "\x1b[107m";
-const RESET: &'static str = "\x1b[0m";
 
 pub struct Renderer {}
 
@@ -53,53 +24,16 @@ impl Renderer {
                 } else {
                     RenderCell::Empty
                 };
-                match (top, bottom) {
-                    (RenderCell::Empty, RenderCell::Empty) => print!(" "),
-                    (RenderCell::Snake, RenderCell::Snake) => {
-                        self.render_fullbox(FG_GREEN);
+                match (top.to_color(), bottom.to_color()) {
+                    (None, None) => {
+                        print!(" ");
                     }
-                    (RenderCell::Snake, RenderCell::Empty) => {
-                        self.render_halfbox(FG_GREEN, BG_WHITE);
-                    }
-                    (RenderCell::Empty, RenderCell::Snake) => {
-                        self.render_halfbox(FG_WHITE, BG_GREEN);
-                    }
-                    (RenderCell::Wall, RenderCell::Snake) => {
-                        self.render_halfbox(FG_BLACK, BG_GREEN);
-                    }
-                    (RenderCell::Snake, RenderCell::Wall) => {
-                        self.render_halfbox(FG_GREEN, BG_BLACK);
-                    }
-                    (RenderCell::Food, RenderCell::Snake) => {
-                        self.render_halfbox(FG_RED, BG_GREEN);
-                    }
-                    (RenderCell::Snake, RenderCell::Food) => {
-                        self.render_halfbox(FG_GREEN, BG_RED);
-                    }
-                    (RenderCell::Food, RenderCell::Empty) => {
-                        self.render_halfbox(FG_RED, BG_WHITE);
-                    }
-                    (RenderCell::Empty, RenderCell::Food) => {
-                        self.render_halfbox(FG_WHITE, BG_RED);
-                    }
-                    (RenderCell::Food, RenderCell::Wall) => {
-                        self.render_halfbox(FG_RED, BG_BLACK);
-                    }
-                    (RenderCell::Wall, RenderCell::Food) => {
-                        self.render_halfbox(FG_BLACK, BG_RED);
-                    }
-                    (RenderCell::Food, RenderCell::Food) => {
-                        self.render_fullbox(FG_RED);
-                    }
-                    (RenderCell::Wall, RenderCell::Empty) => {
-                        self.render_halfbox(FG_BLACK, BG_WHITE);
-                    }
-                    (RenderCell::Empty, RenderCell::Wall) => {
-                        self.render_halfbox(FG_WHITE, BG_BLACK)
-                    }
-                    (RenderCell::Wall, RenderCell::Wall) => {
-                        self.render_fullbox(FG_BLACK);
-                    }
+                    (None, Some(color)) => self.render_bottom_half(color.fg),
+                    (Some(color), None) => self.render_top_half(color.fg),
+                    (Some(fg), Some(bg)) => match fg == bg {
+                        true => self.render_fullbox(fg.fg),
+                        false => self.render_halfbox(fg.fg, bg.bg),
+                    },
                 }
             }
             y += 2;
@@ -110,7 +44,64 @@ impl Renderer {
     fn render_halfbox(&self, up_color: &str, bottom_color: &str) {
         print!("{}{}▀{}", up_color, bottom_color, RESET)
     }
+    fn render_top_half(&self, color: &str) {
+        print!("{}▀{}", color, RESET)
+    }
+    fn render_bottom_half(&self, color: &str) {
+        print!("{}▄{}", color, RESET)
+    }
     fn render_fullbox(&self, color: &str) {
         print!("{}█{}", color, RESET)
+    }
+}
+
+const FG_RED: &'static str = "\x1b[31m";
+const FG_GREEN: &'static str = "\x1b[32m";
+const FG_BRIGHT_BLACK: &'static str = "\x1b[90m";
+const BG_RED: &'static str = "\x1b[41m";
+const BG_GREEN: &'static str = "\x1b[42m";
+const BG_BRIGHT_BLACK: &'static str = "\x1b[100m";
+const RESET: &'static str = "\x1b[0m";
+
+#[derive(PartialEq)]
+struct Color {
+    fg: &'static str,
+    bg: &'static str,
+}
+
+enum RenderCell {
+    Empty,
+    Food,
+    Wall,
+    Snake,
+}
+
+impl RenderCell {
+    fn new(grid: &Grid, snake: &Snake, x: i32, y: i32) -> RenderCell {
+        if snake.occupies(x, y) {
+            return RenderCell::Snake;
+        }
+        match grid.cell(x, y) {
+            Empty => RenderCell::Empty,
+            GridCell::Food => RenderCell::Food,
+            GridCell::Wall => RenderCell::Wall,
+        }
+    }
+    fn to_color(&self) -> Option<Color> {
+        match self {
+            RenderCell::Empty => None,
+            RenderCell::Food => Some(Color {
+                fg: FG_RED,
+                bg: BG_RED,
+            }),
+            RenderCell::Wall => Some(Color {
+                fg: FG_BRIGHT_BLACK,
+                bg: BG_BRIGHT_BLACK,
+            }),
+            RenderCell::Snake => Some(Color {
+                fg: FG_GREEN,
+                bg: BG_GREEN,
+            }),
+        }
     }
 }
