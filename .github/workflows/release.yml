@@ -168,6 +168,12 @@ jobs:
       - build
 
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.sha }}
+          fetch-depth: 0
+
       - name: Download packaged artifacts
         uses: actions/download-artifact@v4
         with:
