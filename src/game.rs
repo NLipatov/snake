@@ -52,10 +52,11 @@ impl Game {
                     None => {}
                     Some(command) => match command {
                         Escape => break,
-                        Pause => match self.pause_loop() {
-                            Some(Escape) => break,
-                            _ => (),
-                        },
+                        Pause => {
+                            if let Some(Escape) = self.pause_loop() {
+                                break;
+                            }
+                        }
                         SnakeMoveUp => self.snake.set_direction(Direction::Up),
                         SnakeMoveDown => self.snake.set_direction(Direction::Down),
                         SnakeMoveLeft => self.snake.set_direction(Direction::Left),
