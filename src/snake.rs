@@ -1,7 +1,8 @@
+use crate::grid::Point;
 use crate::snake::Direction::{Down, Left, Right, Up};
 
 pub struct Snake {
-    body: Vec<(i32, i32)>,
+    body: Vec<Point>,
     direction: Direction,
 }
 
@@ -14,7 +15,7 @@ pub enum Direction {
 }
 
 impl Snake {
-    pub fn new(starting_point: (i32, i32)) -> Snake {
+    pub fn new(starting_point: Point) -> Snake {
         let mut snake = Snake {
             body: Vec::new(),
             direction: Right,
@@ -22,7 +23,7 @@ impl Snake {
         snake.body.push(starting_point);
         snake
     }
-    pub fn head(&self) -> (i32, i32) {
+    pub fn head(&self) -> Point {
         self.body[0]
     }
     pub fn move_snake(&mut self) {
@@ -30,10 +31,18 @@ impl Snake {
             self.body[i] = self.body[i - 1];
         }
         match self.direction {
-            Up => self.body[0].1 -= 1,
-            Down => self.body[0].1 += 1,
-            Left => self.body[0].0 -= 1,
-            Right => self.body[0].0 += 1,
+            Up => {
+                self.body[0] = Point::new(self.body[0].x, self.body[0].y - 1);
+            }
+            Down => {
+                self.body[0] = Point::new(self.body[0].x, self.body[0].y + 1);
+            }
+            Left => {
+                self.body[0] = Point::new(self.body[0].x - 1, self.body[0].y);
+            }
+            Right => {
+                self.body[0] = Point::new(self.body[0].x + 1, self.body[0].y);
+            }
         }
     }
     pub fn set_direction(&mut self, direction: Direction) {
@@ -53,8 +62,8 @@ impl Snake {
         let head = self.head();
         self.body[1..].contains(&head)
     }
-    pub fn occupies(&self, x: i32, y: i32) -> bool {
-        self.body.contains(&(x, y))
+    pub fn occupies(&self, point: &Point) -> bool {
+        self.body.contains(point)
     }
     pub fn len(&self) -> usize {
         self.body.len()

@@ -7,6 +7,18 @@ pub enum GridCell {
     Food,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Point {
+    pub fn new(x: i32, y: i32) -> Point {
+        Point { x, y }
+    }
+}
+
 pub struct Grid {
     width: i32,
     height: i32,
@@ -37,15 +49,23 @@ impl Grid {
     pub fn width(&self) -> i32 {
         self.width
     }
-    pub fn cell(&self, x: i32, y: i32) -> &GridCell {
-        &self.cells[y as usize * self.width as usize + x as usize]
+    fn index(&self, point: &Point) -> usize {
+        point.y as usize * self.width as usize + point.x as usize
     }
-    pub fn change_cell(&mut self, x: i32, y: i32, cell: GridCell) {
-        self.cells[y as usize * self.width as usize + x as usize] = cell;
+    pub fn cell(&self, at: &Point) -> &GridCell {
+        &self.cells[self.index(at)]
     }
-    pub fn on_food_consumed(&mut self, x: i32, y: i32) {
-        if self.cells[y as usize * self.width as usize + x as usize] == Food {
-            self.cells[y as usize * self.width as usize + x as usize] = Empty;
+    pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
+        let idx = self.index(at);
+        self.cells[idx] = cell;
+    }
+    pub fn on_food_consumed(&mut self, at: &Point) {
+        let idx = self.index(at);
+        if self.cells[idx] == Food {
+            self.cells[idx] = Empty;
         }
+    }
+    pub fn within_bounds(&self, at: &Point) -> bool {
+        at.x >= 0 && at.y >= 0 && at.x < self.width() && at.y < self.height()
     }
 }

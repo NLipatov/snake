@@ -1,5 +1,5 @@
 use crate::grid::GridCell::Empty;
-use crate::grid::{Grid, GridCell};
+use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::Write;
 
@@ -23,9 +23,11 @@ impl Renderer {
         let mut y = 0;
         while y < grid.height() {
             for x in 0..grid.width() {
-                let top = RenderCell::new(grid, snake, x, y);
+                let top_point = Point::new(x, y);
+                let bottom_point = Point::new(x, y + 1);
+                let top = RenderCell::new(grid, snake, &top_point);
                 let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, snake, x, y + 1)
+                    RenderCell::new(grid, snake, &bottom_point)
                 } else {
                     RenderCell::Empty
                 };
@@ -82,11 +84,11 @@ enum RenderCell {
 }
 
 impl RenderCell {
-    fn new(grid: &Grid, snake: &Snake, x: i32, y: i32) -> RenderCell {
-        if snake.occupies(x, y) {
+    fn new(grid: &Grid, snake: &Snake, at: &Point) -> RenderCell {
+        if snake.occupies(at) {
             return RenderCell::Snake;
         }
-        match grid.cell(x, y) {
+        match grid.cell(at) {
             Empty => RenderCell::Empty,
             GridCell::Food => RenderCell::Food,
             GridCell::Wall => RenderCell::Wall,
@@ -116,17 +118,21 @@ mod tests {
     use super::{
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_GREEN, FG_RED, RenderCell,
     };
-    use crate::grid::{Grid, GridCell};
+    use crate::grid::{Grid, GridCell, Point};
     use crate::snake::Snake;
+
+    fn point(x: i32, y: i32) -> Point {
+        Point::new(x, y)
+    }
 
     #[test]
     fn render_cell_prefers_snake_over_grid_contents() {
         let mut grid = Grid::new(5, 5);
-        grid.change_cell(2, 2, GridCell::Food);
-        let snake = Snake::new((2, 2));
+        grid.change_cell(&point(2, 2), GridCell::Food);
+        let snake = Snake::new(Point::new(2, 2));
 
         assert!(matches!(
-            RenderCell::new(&grid, &snake, 2, 2),
+            RenderCell::new(&grid, &snake, &point(2, 2)),
             RenderCell::Snake
         ));
     }
@@ -134,19 +140,19 @@ mod tests {
     #[test]
     fn render_cell_reads_food_wall_and_empty_from_grid() {
         let mut grid = Grid::new(5, 5);
-        let snake = Snake::new((1, 1));
-        grid.change_cell(2, 2, GridCell::Food);
+        let snake = Snake::new(Point::new(1, 1));
+        grid.change_cell(&point(2, 2), GridCell::Food);
 
         assert!(matches!(
-            RenderCell::new(&grid, &snake, 2, 2),
+            RenderCell::new(&grid, &snake, &point(2, 2)),
             RenderCell::Food
         ));
         assert!(matches!(
-            RenderCell::new(&grid, &snake, 0, 0),
+            RenderCell::new(&grid, &snake, &point(0, 0)),
             RenderCell::Wall
         ));
         assert!(matches!(
-            RenderCell::new(&grid, &snake, 3, 3),
+            RenderCell::new(&grid, &snake, &point(3, 3)),
             RenderCell::Empty
         ));
     }
