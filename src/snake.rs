@@ -63,7 +63,7 @@ impl Snake {
         self.body[1..].contains(&head)
     }
     pub fn occupies(&self, point: &Point) -> bool {
-        self.body.contains(&point)
+        self.body.contains(point)
     }
     pub fn len(&self) -> usize {
         self.body.len()
