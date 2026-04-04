@@ -1,16 +1,20 @@
-use crate::game::Command::{Escape, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp};
+use crate::game::Command::{
+    Escape, Pause, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp,
+};
 use crate::grid::Grid;
 use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
 use crossterm::event;
+use crossterm::event::KeyEventKind::Press;
 use crossterm::event::{Event, KeyCode};
 use rand::{RngExt, rngs};
 use std::time::Duration;
 
 enum Command {
     Escape,
+    Pause,
     SnakeMoveUp,
     SnakeMoveDown,
     SnakeMoveLeft,
@@ -42,12 +46,17 @@ impl Game {
     }
     fn run_loop(&mut self) {
         loop {
-            match self.read_key() {
+            match self.read_key_async() {
                 None => {}
                 Some(key_code) => match self.key_to_command(key_code) {
                     None => {}
                     Some(command) => match command {
                         Escape => break,
+                        Pause => {
+                            if let Some(Escape) = self.pause_loop() {
+                                break;
+                            }
+                        }
                         SnakeMoveUp => self.snake.set_direction(Direction::Up),
                         SnakeMoveDown => self.snake.set_direction(Direction::Down),
                         SnakeMoveLeft => self.snake.set_direction(Direction::Left),
@@ -77,13 +86,31 @@ impl Game {
             std::thread::sleep(Duration::from_millis(150));
         }
     }
-    fn read_key(&self) -> Option<KeyCode> {
+    fn pause_loop(&self) -> Option<Command> {
+        loop {
+            if let Some(key) = self.read_key_sync() {
+                match self.key_to_command(key) {
+                    Some(Escape) => return Some(Escape),
+                    Some(Pause) => return Some(Pause),
+                    _ => (),
+                }
+            }
+        }
+    }
+    fn read_key_async(&self) -> Option<KeyCode> {
         if event::poll(Duration::from_millis(0)).expect("could not poll event")
             && let Event::Key(key) = event::read().expect("could not read key event")
+            && key.kind == Press
         {
             return Some(key.code);
         }
         None
+    }
+    fn read_key_sync(&self) -> Option<KeyCode> {
+        match event::read().expect("could not read key event") {
+            Event::Key(key) if key.kind == Press => Some(key.code),
+            _ => None,
+        }
     }
     fn key_to_command(&self, key_code: KeyCode) -> Option<Command> {
         match key_code {
@@ -92,6 +119,7 @@ impl Game {
             KeyCode::Left => Some(SnakeMoveLeft),
             KeyCode::Right => Some(SnakeMoveRight),
             KeyCode::Esc => Some(Escape),
+            KeyCode::Char(' ') => Some(Pause),
             _ => None,
         }
     }
@@ -130,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn key_to_command_maps_arrow_keys_and_escape() {
+    fn key_to_command_maps_arrow_keys_escape_and_pause() {
         let game = game_with_probability(0);
 
         assert!(matches!(
@@ -152,6 +180,10 @@ mod tests {
         assert!(matches!(
             game.key_to_command(KeyCode::Esc),
             Some(Command::Escape)
+        ));
+        assert!(matches!(
+            game.key_to_command(KeyCode::Char(' ')),
+            Some(Command::Pause)
         ));
     }
 

@@ -14,4 +14,5 @@ cargo run
 ## Controls 🎮
 
 - Arrow keys: move ⬅️⬆️➡️⬇️
+- `Space`: pause/resume ⏸️
 - `Esc`: quit 🚪
