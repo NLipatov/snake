@@ -2,7 +2,7 @@ use crate::game::Command::{
     Escape, Pause, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp,
 };
 use crate::grid::GridCell::{Empty, Food, Wall};
-use crate::grid::{Grid, GridPoint};
+use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
@@ -129,13 +129,13 @@ impl Game {
     fn spawn_food(&mut self) {
         let max_x = self.grid.width();
         let max_y = self.grid.height();
-        let point = GridPoint::new(
+        let point = Point::new(
             self.rng.random_range(0..max_x),
             self.rng.random_range(0..max_y),
         );
         self.spawn_food_at(&point);
     }
-    fn spawn_food_at(&mut self, point: &GridPoint) {
+    fn spawn_food_at(&mut self, point: &Point) {
         if *self.grid.cell(point) == Empty && !self.snake.occupies(point) {
             self.grid.change_cell(point, Food);
         }
@@ -148,19 +148,19 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::{Command, Game};
-    use crate::grid::{Grid, GridCell, GridPoint};
+    use crate::grid::{Grid, GridCell, Point};
     use crate::renderer::Renderer;
     use crate::snake::Snake;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
-    fn point(x: i32, y: i32) -> GridPoint {
-        GridPoint::new(x, y)
+    fn point(x: i32, y: i32) -> Point {
+        Point::new(x, y)
     }
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
         Game::new(
             Grid::new(8, 8),
-            Snake::new((3, 3)),
+            Snake::new(Point::new(3, 3)),
             Renderer::new(),
             food_spawn_probability,
         )

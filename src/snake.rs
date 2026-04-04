@@ -1,8 +1,8 @@
-use crate::grid::GridPoint;
+use crate::grid::Point;
 use crate::snake::Direction::{Down, Left, Right, Up};
 
 pub struct Snake {
-    body: Vec<(i32, i32)>,
+    body: Vec<Point>,
     direction: Direction,
 }
 
@@ -15,7 +15,7 @@ pub enum Direction {
 }
 
 impl Snake {
-    pub fn new(starting_point: (i32, i32)) -> Snake {
+    pub fn new(starting_point: Point) -> Snake {
         let mut snake = Snake {
             body: Vec::new(),
             direction: Right,
@@ -23,18 +23,26 @@ impl Snake {
         snake.body.push(starting_point);
         snake
     }
-    pub fn head(&self) -> GridPoint {
-        GridPoint::new(self.body[0].0, self.body[0].1)
+    pub fn head(&self) -> Point {
+        self.body[0]
     }
     pub fn move_snake(&mut self) {
         for i in (1..self.body.len()).rev() {
             self.body[i] = self.body[i - 1];
         }
         match self.direction {
-            Up => self.body[0].1 -= 1,
-            Down => self.body[0].1 += 1,
-            Left => self.body[0].0 -= 1,
-            Right => self.body[0].0 += 1,
+            Up => {
+                self.body[0] = Point::new(self.body[0].x, self.body[0].y - 1);
+            }
+            Down => {
+                self.body[0] = Point::new(self.body[0].x, self.body[0].y + 1);
+            }
+            Left => {
+                self.body[0] = Point::new(self.body[0].x - 1, self.body[0].y);
+            }
+            Right => {
+                self.body[0] = Point::new(self.body[0].x + 1, self.body[0].y);
+            }
         }
     }
     pub fn set_direction(&mut self, direction: Direction) {
@@ -48,14 +56,14 @@ impl Snake {
         self.direction = direction;
     }
     pub fn grow(&mut self) {
-        self.body.push((self.head().x, self.head().y));
+        self.body.push(self.head());
     }
     pub fn has_self_collision(&self) -> bool {
         let head = self.head();
-        self.body[1..].contains(&(head.x, head.y))
+        self.body[1..].contains(&head)
     }
-    pub fn occupies(&self, point: &GridPoint) -> bool {
-        self.body.contains(&(point.x, point.y))
+    pub fn occupies(&self, point: &Point) -> bool {
+        self.body.contains(&point)
     }
     pub fn len(&self) -> usize {
         self.body.len()

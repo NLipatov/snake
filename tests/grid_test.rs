@@ -1,7 +1,7 @@
-use snake::grid::{Grid, GridCell, GridPoint};
+use snake::grid::{Grid, GridCell, Point};
 
-fn point(x: i32, y: i32) -> GridPoint {
-    GridPoint::new(x, y)
+fn point(x: i32, y: i32) -> Point {
+    Point::new(x, y)
 }
 
 #[test]
