@@ -49,15 +49,20 @@ impl Grid {
     pub fn width(&self) -> i32 {
         self.width
     }
+    fn index(&self, point: &Point) -> usize {
+        point.y as usize * self.width as usize + point.x as usize
+    }
     pub fn cell(&self, at: &Point) -> &GridCell {
-        &self.cells[at.y as usize * self.width as usize + at.x as usize]
+        &self.cells[self.index(at)]
     }
     pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
-        self.cells[at.y as usize * self.width as usize + at.x as usize] = cell;
+        let idx = self.index(at);
+        self.cells[idx] = cell;
     }
     pub fn on_food_consumed(&mut self, at: &Point) {
-        if self.cells[at.y as usize * self.width as usize + at.x as usize] == Food {
-            self.cells[at.y as usize * self.width as usize + at.x as usize] = Empty;
+        let idx = self.index(at);
+        if self.cells[idx] == Food {
+            self.cells[idx] = Empty;
         }
     }
     pub fn within_bounds(&self, at: &Point) -> bool {
