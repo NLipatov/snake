@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/NLipatov/snake/compare/v0.1.0...v0.1.1) - 2026-04-04
+
+### Added
+
+- *(game)* add pause mode
+- *(game)* add pause mode
+
+### Fixed
+
+- *(input)* only handle key events on press
+- *(ci)* checkout repo before creating GitHub release
+- *(ci)* resolve releases from latest merged release PR
+- *(ci)* publish GitHub releases from release PR merges
+
+### Other
+
+- *(game)* add coverage for key event filtering and food spawning
+- *(game)* simplify pause handling
+
 ## [0.1.0](https://github.com/NLipatov/snake/releases/tag/v0.1.0) - 2026-04-01
 
 ### Added
