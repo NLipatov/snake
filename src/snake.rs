@@ -1,3 +1,4 @@
+use crate::grid::GridPoint;
 use crate::snake::Direction::{Down, Left, Right, Up};
 
 pub struct Snake {
@@ -22,8 +23,8 @@ impl Snake {
         snake.body.push(starting_point);
         snake
     }
-    pub fn head(&self) -> (i32, i32) {
-        self.body[0]
+    pub fn head(&self) -> GridPoint {
+        GridPoint::new(self.body[0].0, self.body[0].1)
     }
     pub fn move_snake(&mut self) {
         for i in (1..self.body.len()).rev() {
@@ -47,14 +48,14 @@ impl Snake {
         self.direction = direction;
     }
     pub fn grow(&mut self) {
-        self.body.push(self.head());
+        self.body.push((self.head().x, self.head().y));
     }
     pub fn has_self_collision(&self) -> bool {
         let head = self.head();
-        self.body[1..].contains(&head)
+        self.body[1..].contains(&(head.x, head.y))
     }
-    pub fn occupies(&self, x: i32, y: i32) -> bool {
-        self.body.contains(&(x, y))
+    pub fn occupies(&self, point: &GridPoint) -> bool {
+        self.body.contains(&(point.x, point.y))
     }
     pub fn len(&self) -> usize {
         self.body.len()
