@@ -98,16 +98,16 @@ impl Game {
         }
     }
     fn read_key_async(&self) -> Option<KeyCode> {
-        if event::poll(Duration::from_millis(0)).expect("could not poll event")
-            && let Event::Key(key) = event::read().expect("could not read key event")
-            && key.kind == Press
-        {
-            return Some(key.code);
+        if event::poll(Duration::from_millis(0)).expect("could not poll event") {
+            return Self::key_code_from_event(event::read().expect("could not read key event"));
         }
         None
     }
     fn read_key_sync(&self) -> Option<KeyCode> {
-        match event::read().expect("could not read key event") {
+        Self::key_code_from_event(event::read().expect("could not read key event"))
+    }
+    fn key_code_from_event(event: Event) -> Option<KeyCode> {
+        match event {
             Event::Key(key) if key.kind == Press => Some(key.code),
             _ => None,
         }
@@ -131,6 +131,9 @@ impl Game {
         let max_y = self.grid.height();
         let x = self.rng.random_range(0..max_x);
         let y = self.rng.random_range(0..max_y);
+        self.spawn_food_at(x, y);
+    }
+    fn spawn_food_at(&mut self, x: i32, y: i32) {
         if *self.grid.cell(x, y) == Empty && !self.snake.occupies(x, y) {
             self.grid.change_cell(x, y, Food);
         }
@@ -143,10 +146,10 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::{Command, Game};
-    use crate::grid::Grid;
+    use crate::grid::{Grid, GridCell};
     use crate::renderer::Renderer;
     use crate::snake::Snake;
-    use crossterm::event::KeyCode;
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
         Game::new(
@@ -195,6 +198,35 @@ mod tests {
     }
 
     #[test]
+    fn key_code_from_event_reads_press_events() {
+        let key_event = Event::Key(KeyEvent::new_with_kind(
+            KeyCode::Up,
+            KeyModifiers::NONE,
+            KeyEventKind::Press,
+        ));
+
+        assert_eq!(Game::key_code_from_event(key_event), Some(KeyCode::Up));
+    }
+
+    #[test]
+    fn key_code_from_event_ignores_repeat_release_and_non_key_events() {
+        let repeat_event = Event::Key(KeyEvent::new_with_kind(
+            KeyCode::Up,
+            KeyModifiers::NONE,
+            KeyEventKind::Repeat,
+        ));
+        let release_event = Event::Key(KeyEvent::new_with_kind(
+            KeyCode::Up,
+            KeyModifiers::NONE,
+            KeyEventKind::Release,
+        ));
+
+        assert_eq!(Game::key_code_from_event(repeat_event), None);
+        assert_eq!(Game::key_code_from_event(release_event), None);
+        assert_eq!(Game::key_code_from_event(Event::Resize(80, 24)), None);
+    }
+
+    #[test]
     fn should_spawn_food_is_never_true_at_zero_percent() {
         let mut game = game_with_probability(0);
 
@@ -210,6 +242,36 @@ mod tests {
         for _ in 0..100 {
             assert!(game.should_spawn_food());
         }
+    }
+
+    #[test]
+    fn spawn_food_at_places_food_on_empty_unoccupied_cell() {
+        let mut game = game_with_probability(0);
+
+        game.spawn_food_at(4, 4);
+
+        assert_eq!(game.grid.cell(4, 4), &GridCell::Food);
+    }
+
+    #[test]
+    fn spawn_food_at_does_not_place_food_on_snake() {
+        let mut game = game_with_probability(0);
+
+        game.spawn_food_at(3, 3);
+
+        assert_eq!(game.grid.cell(3, 3), &GridCell::Empty);
+    }
+
+    #[test]
+    fn spawn_food_at_does_not_overwrite_existing_food_or_wall() {
+        let mut game = game_with_probability(0);
+        game.grid.change_cell(4, 4, GridCell::Food);
+
+        game.spawn_food_at(4, 4);
+        game.spawn_food_at(0, 0);
+
+        assert_eq!(game.grid.cell(4, 4), &GridCell::Food);
+        assert_eq!(game.grid.cell(0, 0), &GridCell::Wall);
     }
 
     #[test]
