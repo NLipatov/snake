@@ -88,15 +88,12 @@ impl Game {
     }
     fn pause_loop(&self) -> Option<Command> {
         loop {
-            match self.read_key_sync() {
-                Some(key_code) => match self.key_to_command(key_code) {
-                    Some(Pause) => {
-                        return Some(Pause);
-                    }
+            if let Some(key) = self.read_key_sync() {
+                match self.key_to_command(key) {
                     Some(Escape) => return Some(Escape),
+                    Some(Pause) => return Some(Pause),
                     _ => (),
-                },
-                _ => (),
+                }
             }
         }
     }
