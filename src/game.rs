@@ -7,6 +7,7 @@ use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
 use crossterm::event;
+use crossterm::event::KeyEventKind::Press;
 use crossterm::event::{Event, KeyCode};
 use rand::{RngExt, rngs};
 use std::time::Duration;
@@ -101,6 +102,7 @@ impl Game {
     fn read_key_async(&self) -> Option<KeyCode> {
         if event::poll(Duration::from_millis(0)).expect("could not poll event")
             && let Event::Key(key) = event::read().expect("could not read key event")
+            && key.kind == Press
         {
             return Some(key.code);
         }
@@ -108,7 +110,7 @@ impl Game {
     }
     fn read_key_sync(&self) -> Option<KeyCode> {
         match event::read().expect("could not read key event") {
-            Event::Key(key) => Some(key.code),
+            Event::Key(key) if key.kind == Press => Some(key.code),
             _ => None,
         }
     }
