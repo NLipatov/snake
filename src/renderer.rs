@@ -37,7 +37,10 @@ impl Renderer {
         std::io::stdout().flush().expect("could not flush stdout");
     }
     fn render_header(&self, render_state: &RenderState) {
-        print!("Score: {}\r\n", render_state.score);
+        print!(
+            "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}\r\n",
+            render_state.score
+        );
     }
     fn render_grid(&self, render_state: &RenderState) {
         let mut y = 0;
@@ -81,6 +84,7 @@ impl Renderer {
     }
 }
 
+const FG_DIM: &str = "\x1b[2m";
 const FG_RED: &str = "\x1b[31m";
 const FG_GREEN: &str = "\x1b[32m";
 const FG_BRIGHT_BLACK: &str = "\x1b[90m";
