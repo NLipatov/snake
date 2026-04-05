@@ -6,13 +6,11 @@ use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::Renderer;
 use crate::snake::{Direction, Snake};
-use crossterm::event;
-use crossterm::event::KeyEventKind::Press;
-use crossterm::event::{Event, KeyCode};
+use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
 use std::time::Duration;
 
-enum Command {
+pub enum Command {
     Escape,
     Pause,
     SnakeMoveUp,
@@ -22,6 +20,7 @@ enum Command {
 }
 
 pub struct Game {
+    terminal: Terminal,
     grid: Grid,
     snake: Snake,
     renderer: Renderer,
@@ -30,9 +29,16 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(grid: Grid, snake: Snake, renderer: Renderer, food_spawn_probability: i32) -> Game {
+    pub fn new(
+        terminal: Terminal,
+        grid: Grid,
+        snake: Snake,
+        renderer: Renderer,
+        food_spawn_probability: i32,
+    ) -> Game {
         let rng = rand::rng();
         Game {
+            terminal,
             grid,
             snake,
             renderer,
@@ -46,22 +52,21 @@ impl Game {
     }
     fn run_loop(&mut self) {
         loop {
-            match self.read_key_async() {
+            match self.terminal.wait_for_command_async() {
                 None => {}
-                Some(key_code) => match self.key_to_command(key_code) {
-                    None => {}
-                    Some(command) => match command {
-                        Escape => break,
-                        Pause => {
-                            if let Some(Escape) = self.pause_loop() {
-                                break;
-                            }
+                Some(command) => match command {
+                    Escape => break,
+                    Pause => loop {
+                        match self.terminal.wait_for_command_sync() {
+                            Some(Pause) => break,
+                            Some(Escape) => return,
+                            _ => (),
                         }
-                        SnakeMoveUp => self.snake.set_direction(Direction::Up),
-                        SnakeMoveDown => self.snake.set_direction(Direction::Down),
-                        SnakeMoveLeft => self.snake.set_direction(Direction::Left),
-                        SnakeMoveRight => self.snake.set_direction(Direction::Right),
                     },
+                    SnakeMoveUp => self.snake.set_direction(Direction::Up),
+                    SnakeMoveDown => self.snake.set_direction(Direction::Down),
+                    SnakeMoveLeft => self.snake.set_direction(Direction::Left),
+                    SnakeMoveRight => self.snake.set_direction(Direction::Right),
                 },
             }
             self.snake.move_snake();
@@ -84,43 +89,6 @@ impl Game {
             }
             self.renderer.render(&self.grid, &self.snake);
             std::thread::sleep(Duration::from_millis(150));
-        }
-    }
-    fn pause_loop(&self) -> Option<Command> {
-        loop {
-            if let Some(key) = self.read_key_sync() {
-                match self.key_to_command(key) {
-                    Some(Escape) => return Some(Escape),
-                    Some(Pause) => return Some(Pause),
-                    _ => (),
-                }
-            }
-        }
-    }
-    fn read_key_async(&self) -> Option<KeyCode> {
-        if event::poll(Duration::from_millis(0)).expect("could not poll event") {
-            return Self::key_code_from_event(event::read().expect("could not read key event"));
-        }
-        None
-    }
-    fn read_key_sync(&self) -> Option<KeyCode> {
-        Self::key_code_from_event(event::read().expect("could not read key event"))
-    }
-    fn key_code_from_event(event: Event) -> Option<KeyCode> {
-        match event {
-            Event::Key(key) if key.kind == Press => Some(key.code),
-            _ => None,
-        }
-    }
-    fn key_to_command(&self, key_code: KeyCode) -> Option<Command> {
-        match key_code {
-            KeyCode::Up => Some(SnakeMoveUp),
-            KeyCode::Down => Some(SnakeMoveDown),
-            KeyCode::Left => Some(SnakeMoveLeft),
-            KeyCode::Right => Some(SnakeMoveRight),
-            KeyCode::Esc => Some(Escape),
-            KeyCode::Char(' ') => Some(Pause),
-            _ => None,
         }
     }
     fn should_spawn_food(&mut self) -> bool {
@@ -147,11 +115,11 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, Game};
+    use super::Game;
     use crate::grid::{Grid, GridCell, Point};
     use crate::renderer::Renderer;
     use crate::snake::Snake;
-    use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+    use crate::terminal::Terminal;
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)
@@ -159,77 +127,12 @@ mod tests {
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
         Game::new(
+            Terminal::default(),
             Grid::new(8, 8),
             Snake::new(Point::new(3, 3)),
             Renderer::new(),
             food_spawn_probability,
         )
-    }
-
-    #[test]
-    fn key_to_command_maps_arrow_keys_escape_and_pause() {
-        let game = game_with_probability(0);
-
-        assert!(matches!(
-            game.key_to_command(KeyCode::Up),
-            Some(Command::SnakeMoveUp)
-        ));
-        assert!(matches!(
-            game.key_to_command(KeyCode::Down),
-            Some(Command::SnakeMoveDown)
-        ));
-        assert!(matches!(
-            game.key_to_command(KeyCode::Left),
-            Some(Command::SnakeMoveLeft)
-        ));
-        assert!(matches!(
-            game.key_to_command(KeyCode::Right),
-            Some(Command::SnakeMoveRight)
-        ));
-        assert!(matches!(
-            game.key_to_command(KeyCode::Esc),
-            Some(Command::Escape)
-        ));
-        assert!(matches!(
-            game.key_to_command(KeyCode::Char(' ')),
-            Some(Command::Pause)
-        ));
-    }
-
-    #[test]
-    fn key_to_command_ignores_unhandled_keys() {
-        let game = game_with_probability(0);
-
-        assert!(game.key_to_command(KeyCode::Enter).is_none());
-    }
-
-    #[test]
-    fn key_code_from_event_reads_press_events() {
-        let key_event = Event::Key(KeyEvent::new_with_kind(
-            KeyCode::Up,
-            KeyModifiers::NONE,
-            KeyEventKind::Press,
-        ));
-
-        assert_eq!(Game::key_code_from_event(key_event), Some(KeyCode::Up));
-    }
-
-    #[test]
-    fn key_code_from_event_ignores_repeat_release_and_non_key_events() {
-        let repeat_event = Event::Key(KeyEvent::new_with_kind(
-            KeyCode::Up,
-            KeyModifiers::NONE,
-            KeyEventKind::Repeat,
-        ));
-        let release_event = Event::Key(KeyEvent::new_with_kind(
-            KeyCode::Up,
-            KeyModifiers::NONE,
-            KeyEventKind::Release,
-        ));
-
-        assert_eq!(Game::key_code_from_event(repeat_event), None);
-        assert_eq!(Game::key_code_from_event(release_event), None);
-        assert_eq!(Game::key_code_from_event(Event::Resize(80, 24)), None);
     }
 
     #[test]
