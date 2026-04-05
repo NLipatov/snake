@@ -157,8 +157,8 @@ impl RenderCell {
 #[cfg(test)]
 mod tests {
     use super::{
-        BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED,
-        RESET, RenderCell, RenderState, Renderer,
+        BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
+        RenderCell, RenderState, Renderer,
     };
     use crate::grid::{Grid, GridCell, Point};
     use crate::snake::Snake;
