@@ -3,6 +3,18 @@ use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::Write;
 
+pub struct RenderState<'a> {
+    grid: &'a Grid,
+    snake: &'a Snake,
+    score: usize,
+}
+
+impl<'a> RenderState<'a> {
+    pub fn new(grid: &'a Grid, snake: &'a Snake, score: usize) -> RenderState<'a> {
+        RenderState { grid, snake, score }
+    }
+}
+
 pub struct Renderer {}
 
 impl Default for Renderer {
@@ -18,16 +30,24 @@ impl Renderer {
     fn clear(&self) {
         print!("\x1B[2J\x1B[1;1H");
     }
-    pub fn render(&self, grid: &Grid, snake: &Snake) {
+    pub fn render(&self, render_state: RenderState) {
         self.clear();
+        self.render_header(&render_state);
+        self.render_grid(&render_state);
+        std::io::stdout().flush().expect("could not flush stdout");
+    }
+    fn render_header(&self, render_state: &RenderState) {
+        print!("Score: {}\r\n", render_state.score);
+    }
+    fn render_grid(&self, render_state: &RenderState) {
         let mut y = 0;
-        while y < grid.height() {
-            for x in 0..grid.width() {
+        while y < render_state.grid.height() {
+            for x in 0..render_state.grid.width() {
                 let top_point = Point::new(x, y);
                 let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(grid, snake, &top_point);
-                let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, snake, &bottom_point)
+                let top = RenderCell::new(render_state.grid, render_state.snake, &top_point);
+                let bottom = if y + 1 < render_state.grid.height() {
+                    RenderCell::new(render_state.grid, render_state.snake, &bottom_point)
                 } else {
                     RenderCell::Empty
                 };
@@ -46,7 +66,6 @@ impl Renderer {
             y += 2;
             print!("\r\n")
         }
-        std::io::stdout().flush().expect("could not flush stdout");
     }
     fn render_halfbox(&self, up_color: &str, bottom_color: &str) {
         print!("{}{}▀{}", up_color, bottom_color, RESET)

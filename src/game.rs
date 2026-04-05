@@ -4,7 +4,7 @@ use crate::game::Command::{
 use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
-use crate::renderer::Renderer;
+use crate::renderer::{RenderState, Renderer};
 use crate::snake::{Direction, Snake};
 use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
@@ -87,7 +87,8 @@ impl Game {
             if self.should_spawn_food() {
                 self.spawn_food();
             }
-            self.renderer.render(&self.grid, &self.snake);
+            self.renderer
+                .render(RenderState::new(&self.grid, &self.snake, self.score()));
             std::thread::sleep(Duration::from_millis(150));
         }
     }
