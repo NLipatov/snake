@@ -87,7 +87,9 @@ impl Game {
             if self.should_spawn_food() {
                 self.spawn_food();
             }
-            self.renderer.render(self.render_state());
+            let score = self.snake.len().saturating_sub(1);
+            let render_state = RenderState::new(&self.grid, &self.snake, score);
+            self.renderer.render(render_state);
             std::thread::sleep(Duration::from_millis(150));
         }
     }

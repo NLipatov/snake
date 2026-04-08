@@ -2,6 +2,7 @@ use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::Write;
+use std::ops::Div;
 
 pub struct RenderState<'a> {
     grid: &'a Grid,
@@ -27,7 +28,9 @@ impl<'a> RenderState<'a> {
     }
 }
 
-pub struct Renderer {}
+pub struct Renderer {
+    prev_frame: Option<Frame>,
+}
 
 impl Default for Renderer {
     fn default() -> Self {
@@ -37,17 +40,17 @@ impl Default for Renderer {
 
 impl Renderer {
     pub fn new() -> Renderer {
-        Renderer {}
+        Renderer { prev_frame: None }
     }
     fn clear<W: Write>(&self, out: &mut W) {
         write!(out, "\x1B[2J\x1B[1;1H").expect("could not write clear sequence");
     }
-    pub fn render(&self, render_state: RenderState<'_>) {
+    pub fn render(&mut self, render_state: RenderState<'_>) {
         let mut stdout = std::io::stdout();
         self.render_to(&mut stdout, render_state);
         stdout.flush().expect("could not flush stdout");
     }
-    fn render_to<W: Write>(&self, out: &mut W, render_state: RenderState<'_>) {
+    fn render_to<W: Write>(&mut self, out: &mut W, render_state: RenderState<'_>) {
         self.clear(out);
         self.render_header(out, &render_state);
         self.render_grid(out, &render_state);
@@ -60,7 +63,11 @@ impl Renderer {
         )
         .expect("could not write header");
     }
-    fn render_grid<W: Write>(&self, out: &mut W, render_state: &RenderState<'_>) {
+    fn render_grid<W: Write>(&mut self, out: &mut W, render_state: &RenderState<'_>) {
+        let mut frame = Frame::new(
+            render_state.grid.width() as usize,
+            ((render_state.grid.height() + 1) / 2) as usize,
+        );
         let mut y = 0;
         while y < render_state.grid.height() {
             for x in 0..render_state.grid.width() {
@@ -83,10 +90,12 @@ impl Renderer {
                         false => self.render_halfbox(out, fg.fg, bg.bg),
                     },
                 }
+                frame.set(x as usize, (y / 2) as usize, TerminalCell::new(top, bottom));
             }
             y += 2;
             write!(out, "\r\n").expect("could not write row break")
         }
+        self.prev_frame = Some(frame)
     }
     fn render_halfbox<W: Write>(&self, out: &mut W, up_color: &str, bottom_color: &str) {
         write!(out, "{}{}▀{}", up_color, bottom_color, RESET).expect("could not write half box")
@@ -134,10 +143,10 @@ impl Frame {
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
     }
-    fn get(&self, x: usize, y: usize) -> &TerminalCell {
+    pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
     }
-    fn set(&mut self, x: usize, y: usize, cell: TerminalCell) {
+    pub fn set(&mut self, x: usize, y: usize, cell: TerminalCell) {
         let idx = self.index(x, y);
         self.cells[idx] = cell;
     }
@@ -149,6 +158,9 @@ struct TerminalCell {
 }
 
 impl TerminalCell {
+    pub fn new(top: RenderCell, bottom: RenderCell) -> TerminalCell {
+        TerminalCell { top, bottom }
+    }
     pub fn empty() -> TerminalCell {
         TerminalCell {
             top: RenderCell::Empty,
@@ -237,7 +249,7 @@ mod tests {
 
     #[test]
     fn render_grid_writes_mixed_cells_and_row_breaks() {
-        let renderer = Renderer::new();
+        let mut renderer = Renderer::new();
         let mut grid = Grid::new(5, 5);
         let snake = Snake::new(Point::new(2, 2));
         grid.change_cell(&point(2, 3), GridCell::Food);
@@ -258,7 +270,7 @@ mod tests {
 
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
-        let renderer = Renderer::new();
+        let mut renderer = Renderer::new();
         let mut grid = Grid::new(5, 5);
         let snake = Snake::new(Point::new(2, 2));
         grid.change_cell(&point(2, 3), GridCell::Food);
