@@ -5,7 +5,7 @@ use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
 use crate::renderer::{RenderState, Renderer};
-use crate::snake::{Direction, Snake};
+use crate::snake::{Direction, MoveResult, Snake};
 use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
 use std::time::Duration;
@@ -69,8 +69,7 @@ impl Game {
                     SnakeMoveRight => self.snake.set_direction(Direction::Right),
                 },
             }
-            self.snake.move_snake();
-            if self.snake.has_self_collision() {
+            if let MoveResult::SelfCollision = self.snake.move_snake() {
                 break;
             }
             let head = self.snake.head();
@@ -87,7 +86,7 @@ impl Game {
             if self.should_spawn_food() {
                 self.spawn_food();
             }
-            let score = self.snake.len().saturating_sub(1);
+            let score = self.snake.logical_len().saturating_sub(1);
             let render_state = RenderState::new(&self.grid, &self.snake, score);
             self.renderer.render(render_state);
             std::thread::sleep(Duration::from_millis(115));
@@ -111,7 +110,7 @@ impl Game {
         }
     }
     pub fn score(&self) -> usize {
-        self.snake.len().saturating_sub(1)
+        self.snake.logical_len().saturating_sub(1)
     }
 }
 
@@ -128,10 +127,15 @@ mod tests {
     }
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
+        let grid = Grid::new(8, 8);
+        let snake = match Snake::new(Point::new(3, 3), &grid) {
+            Ok(snake) => snake,
+            Err(e) => panic!("{}", e),
+        };
         Game::new(
             Terminal::default(),
-            Grid::new(8, 8),
-            Snake::new(Point::new(3, 3)),
+            grid,
+            snake,
             Renderer::new(),
             food_spawn_probability,
         )

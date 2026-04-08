@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn render_state_new_keeps_grid_snake_and_score() {
         let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         let render_state = RenderState::new(&grid, &snake, 7);
 
         assert_eq!(render_state.grid().width(), 5);
@@ -256,7 +256,7 @@ mod tests {
     fn render_header_writes_dimmed_score_line() {
         let renderer = Renderer::new();
         let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         let render_state = RenderState::new(&grid, &snake, 3);
         let mut out = Vec::new();
 
@@ -272,7 +272,7 @@ mod tests {
     fn render_grid_writes_mixed_cells_with_cursor_moves() {
         let mut renderer = Renderer::new();
         let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         grid.change_cell(&point(3, 3), GridCell::Food);
         let render_state = RenderState::new(&grid, &snake, 0);
@@ -295,7 +295,7 @@ mod tests {
     fn render_writes_clear_sequence_header_and_grid() {
         let mut renderer = Renderer::new();
         let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         let render_state = RenderState::new(&grid, &snake, 1);
         let mut out = Vec::new();
@@ -316,7 +316,7 @@ mod tests {
     fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
         let mut renderer = Renderer::new();
         let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
@@ -336,8 +336,10 @@ mod tests {
     fn second_render_with_changed_state_updates_only_changed_cells() {
         let mut renderer = Renderer::new();
         let grid = Grid::new(5, 5);
-        let first_snake = Snake::new(Point::new(2, 2));
-        let second_snake = Snake::new(Point::new(3, 2));
+        let first_snake =
+            Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let second_snake =
+            Snake::new(Point::new(3, 2), &grid).expect("snake should fit in grid");
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
@@ -359,7 +361,7 @@ mod tests {
     fn render_cell_prefers_snake_over_grid_contents() {
         let mut grid = Grid::new(5, 5);
         grid.change_cell(&point(2, 2), GridCell::Food);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
 
         assert!(matches!(
             RenderCell::new(&grid, &snake, &point(2, 2)),
@@ -370,7 +372,7 @@ mod tests {
     #[test]
     fn render_cell_reads_food_wall_and_empty_from_grid() {
         let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(1, 1));
+        let snake = Snake::new(Point::new(1, 1), &grid).expect("snake should fit in grid");
         grid.change_cell(&point(2, 2), GridCell::Food);
 
         assert!(matches!(
