@@ -2,7 +2,6 @@ use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::Write;
-use std::ops::Div;
 
 pub struct RenderState<'a> {
     grid: &'a Grid,
@@ -43,33 +42,39 @@ impl Renderer {
         Renderer { prev_frame: None }
     }
     fn clear<W: Write>(&self, out: &mut W) {
-        write!(out, "\x1B[2J\x1B[1;1H").expect("could not write clear sequence");
+        write!(out, "\x1B[2J").expect("could not clear screen");
     }
     pub fn render(&mut self, render_state: RenderState<'_>) {
         let mut stdout = std::io::stdout();
         self.render_to(&mut stdout, render_state);
-        stdout.flush().expect("could not flush stdout");
     }
     fn render_to<W: Write>(&mut self, out: &mut W, render_state: RenderState<'_>) {
-        self.clear(out);
+        if self.prev_frame.is_none() {
+            self.clear(out)
+        }
         self.render_header(out, &render_state);
         self.render_grid(out, &render_state);
+        let footer_row = 2 + ((render_state.grid.height() + 1) / 2) as usize;
+        self.move_cursor(out, footer_row, 1);
+        out.flush().expect("could not flush stdout");
     }
     fn render_header<W: Write>(&self, out: &mut W, render_state: &RenderState<'_>) {
+        self.move_cursor(out, 1, 1);
         write!(
             out,
-            "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}\r\n",
+            "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}",
             render_state.score
         )
         .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, render_state: &RenderState<'_>) {
-        let mut frame = Frame::new(
+        let mut new_frame = Frame::new(
             render_state.grid.width() as usize,
             ((render_state.grid.height() + 1) / 2) as usize,
         );
         let mut y = 0;
         while y < render_state.grid.height() {
+            let term_y = (y / 2) as usize;
             for x in 0..render_state.grid.width() {
                 let top_point = Point::new(x, y);
                 let bottom_point = Point::new(x, y + 1);
@@ -79,23 +84,38 @@ impl Renderer {
                 } else {
                     RenderCell::Empty
                 };
-                match (top.to_color(), bottom.to_color()) {
-                    (None, None) => {
-                        write!(out, " ").expect("could not write empty cell");
+                new_frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
+                if match self.prev_frame.as_ref() {
+                    None => true,
+                    Some(prev_frame) => {
+                        prev_frame.get(x as usize, term_y) != new_frame.get(x as usize, term_y)
                     }
-                    (None, Some(color)) => self.render_bottom_half(out, color.fg),
-                    (Some(color), None) => self.render_top_half(out, color.fg),
-                    (Some(fg), Some(bg)) => match fg == bg {
-                        true => self.render_fullbox(out, fg.fg),
-                        false => self.render_halfbox(out, fg.fg, bg.bg),
-                    },
+                } {
+                    let row = 2 + term_y;
+                    let col = 1 + x as usize;
+                    self.move_cursor(out, row, col);
+                    self.render_cell(out, new_frame.get(x as usize, term_y));
                 }
-                frame.set(x as usize, (y / 2) as usize, TerminalCell::new(top, bottom));
             }
             y += 2;
-            write!(out, "\r\n").expect("could not write row break")
         }
-        self.prev_frame = Some(frame)
+        self.prev_frame = Some(new_frame)
+    }
+    fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
+        match (
+            terminal_cell.top.to_color(),
+            terminal_cell.bottom.to_color(),
+        ) {
+            (None, None) => {
+                write!(out, " ").expect("could not write empty cell");
+            }
+            (None, Some(color)) => self.render_bottom_half(out, color.fg),
+            (Some(color), None) => self.render_top_half(out, color.fg),
+            (Some(fg), Some(bg)) => match fg == bg {
+                true => self.render_fullbox(out, fg.fg),
+                false => self.render_halfbox(out, fg.fg, bg.bg),
+            },
+        }
     }
     fn render_halfbox<W: Write>(&self, out: &mut W, up_color: &str, bottom_color: &str) {
         write!(out, "{}{}▀{}", up_color, bottom_color, RESET).expect("could not write half box")
@@ -108,6 +128,9 @@ impl Renderer {
     }
     fn render_fullbox<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}█{}", color, RESET).expect("could not write full box")
+    }
+    fn move_cursor(&self, out: &mut impl Write, row: usize, col: usize) {
+        write!(out, "\x1B[{};{}H", row, col).expect("could not move cursor");
     }
 }
 
@@ -128,7 +151,6 @@ struct Color {
 
 struct Frame {
     width: usize,
-    height: usize,
     cells: Vec<TerminalCell>,
 }
 
@@ -136,7 +158,6 @@ impl Frame {
     pub fn new(width: usize, height: usize) -> Frame {
         Frame {
             width,
-            height,
             cells: vec![TerminalCell::empty(); width * height],
         }
     }
@@ -151,7 +172,7 @@ impl Frame {
         self.cells[idx] = cell;
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 struct TerminalCell {
     top: RenderCell,
     bottom: RenderCell,
@@ -169,7 +190,7 @@ impl TerminalCell {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 enum RenderCell {
     Empty,
     Food,
@@ -243,12 +264,12 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
-            format!("{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}\r\n")
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
         );
     }
 
     #[test]
-    fn render_grid_writes_mixed_cells_and_row_breaks() {
+    fn render_grid_writes_mixed_cells_with_cursor_moves() {
         let mut renderer = Renderer::new();
         let mut grid = Grid::new(5, 5);
         let snake = Snake::new(Point::new(2, 2));
@@ -265,7 +286,9 @@ mod tests {
         assert!(output.contains("█"));
         assert!(output.contains("▀"));
         assert!(output.contains("▄"));
-        assert!(output.contains("\r\n"));
+        assert!(output.contains("\x1B[2;1H"));
+        assert!(output.contains("\x1B[3;3H"));
+        assert!(!output.contains("\r\n"));
     }
 
     #[test]
@@ -282,8 +305,30 @@ mod tests {
         let output = String::from_utf8(out).expect("render should be utf-8");
 
         assert!(output.starts_with("\x1B[2J\x1B[1;1H"));
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\r\n")));
+        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
+        assert!(output.contains("\x1B[2;1H"));
+        assert!(output.ends_with("\x1B[5;1H"));
         assert!(output.contains("█"));
+    }
+
+    #[test]
+    fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
+        let mut renderer = Renderer::new();
+        let grid = Grid::new(5, 5);
+        let snake = Snake::new(Point::new(2, 2));
+        let mut first_out = Vec::new();
+        let mut second_out = Vec::new();
+
+        renderer.render_to(&mut first_out, RenderState::new(&grid, &snake, 1));
+        renderer.render_to(&mut second_out, RenderState::new(&grid, &snake, 1));
+
+        let output = String::from_utf8(second_out).expect("render should be utf-8");
+
+        assert!(!output.contains("\x1B[2J"));
+        assert_eq!(
+            output,
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;1H")
+        );
     }
 
     #[test]
