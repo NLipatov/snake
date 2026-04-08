@@ -117,6 +117,47 @@ struct Color {
     bg: &'static str,
 }
 
+struct Frame {
+    width: usize,
+    height: usize,
+    cells: Vec<TerminalCell>,
+}
+
+impl Frame {
+    pub fn new(width: usize, height: usize) -> Frame {
+        Frame {
+            width,
+            height,
+            cells: vec![TerminalCell::empty(); width * height],
+        }
+    }
+    fn index(&self, x: usize, y: usize) -> usize {
+        self.width * y + x
+    }
+    fn get(&self, x: usize, y: usize) -> &TerminalCell {
+        &self.cells[self.index(x, y)]
+    }
+    fn set(&mut self, x: usize, y: usize, cell: TerminalCell) {
+        let idx = self.index(x, y);
+        self.cells[idx] = cell;
+    }
+}
+#[derive(Clone)]
+struct TerminalCell {
+    top: RenderCell,
+    bottom: RenderCell,
+}
+
+impl TerminalCell {
+    pub fn empty() -> TerminalCell {
+        TerminalCell {
+            top: RenderCell::Empty,
+            bottom: RenderCell::Empty,
+        }
+    }
+}
+
+#[derive(Clone)]
 enum RenderCell {
     Empty,
     Food,
