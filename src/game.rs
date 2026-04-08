@@ -110,9 +110,6 @@ impl Game {
             self.grid.change_cell(point, Food);
         }
     }
-    fn render_state(&self) -> RenderState<'_> {
-        RenderState::new(&self.grid, &self.snake, self.score())
-    }
     pub fn score(&self) -> usize {
         self.snake.len().saturating_sub(1)
     }
@@ -122,7 +119,7 @@ impl Game {
 mod tests {
     use super::Game;
     use crate::grid::{Grid, GridCell, Point};
-    use crate::renderer::Renderer;
+    use crate::renderer::{RenderState, Renderer};
     use crate::snake::Snake;
     use crate::terminal::Terminal;
 
@@ -208,7 +205,7 @@ mod tests {
     fn render_state_uses_current_grid_snake_and_score() {
         let mut game = game_with_probability(0);
         game.snake.grow();
-        let render_state = game.render_state();
+        let render_state = RenderState::new(&game.grid, &game.snake, game.score());
 
         assert_eq!(render_state.grid().width(), 8);
         assert!(render_state.snake().occupies(&point(3, 3)));
