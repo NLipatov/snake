@@ -305,6 +305,7 @@ mod tests {
         let output = String::from_utf8(out).expect("render should be utf-8");
 
         assert!(output.starts_with("\x1B[2J\x1B[1;1H"));
+        assert_eq!(output.matches("\x1B[2J").count(), 1);
         assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
         assert!(output.contains("\x1B[2;1H"));
         assert!(output.ends_with("\x1B[5;1H"));
@@ -328,6 +329,29 @@ mod tests {
         assert_eq!(
             output,
             format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;1H")
+        );
+    }
+
+    #[test]
+    fn second_render_with_changed_state_updates_only_changed_cells() {
+        let mut renderer = Renderer::new();
+        let grid = Grid::new(5, 5);
+        let first_snake = Snake::new(Point::new(2, 2));
+        let second_snake = Snake::new(Point::new(3, 2));
+        let mut first_out = Vec::new();
+        let mut second_out = Vec::new();
+
+        renderer.render_to(&mut first_out, RenderState::new(&grid, &first_snake, 0));
+        renderer.render_to(&mut second_out, RenderState::new(&grid, &second_snake, 0));
+
+        let output = String::from_utf8(second_out).expect("render should be utf-8");
+
+        assert!(!output.contains("\x1B[2J"));
+        assert_eq!(
+            output,
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[5;1H"
+            )
         );
     }
 
