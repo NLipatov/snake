@@ -73,15 +73,19 @@ impl Game {
                 break;
             }
             let head = self.snake.head();
-            if !self.grid.within_bounds(&head) {
+            if !self.grid.in_bounds(&head) {
                 break;
             }
-            if *self.grid.cell(&head) == Wall {
-                break;
-            }
-            if *self.grid.cell(&head) == Food {
-                self.snake.grow();
-                self.grid.on_food_consumed(&head)
+            match self.grid.cell(&head) {
+                None => {}
+                Some(cell) => match cell {
+                    Wall => break,
+                    Food => {
+                        self.snake.grow();
+                        self.grid.on_food_consumed(&head)
+                    }
+                    _ => (),
+                },
             }
             if self.should_spawn_food() {
                 self.spawn_food();
@@ -104,7 +108,9 @@ impl Game {
         self.spawn_food_at(&point);
     }
     fn spawn_food_at(&mut self, point: &Point) {
-        if *self.grid.cell(point) == Empty && !self.snake.occupies(point) {
+        if let Some(Empty) = self.grid.cell(point)
+            && !self.snake.occupies(point)
+        {
             self.grid.change_cell(point, Food);
         }
     }
@@ -164,7 +170,7 @@ mod tests {
 
         game.spawn_food_at(&point(4, 4));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
+        assert_eq!(game.grid.cell(&point(4, 4)), Some(&GridCell::Food));
     }
 
     #[test]
@@ -173,7 +179,7 @@ mod tests {
 
         game.spawn_food_at(&point(3, 3));
 
-        assert_eq!(game.grid.cell(&point(3, 3)), &GridCell::Empty);
+        assert_eq!(game.grid.cell(&point(3, 3)), Some(&GridCell::Empty));
     }
 
     #[test]
@@ -184,8 +190,8 @@ mod tests {
         game.spawn_food_at(&point(4, 4));
         game.spawn_food_at(&point(0, 0));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
-        assert_eq!(game.grid.cell(&point(0, 0)), &GridCell::Wall);
+        assert_eq!(game.grid.cell(&point(4, 4)), Some(&GridCell::Food));
+        assert_eq!(game.grid.cell(&point(0, 0)), Some(&GridCell::Wall));
     }
 
     #[test]

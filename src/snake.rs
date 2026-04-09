@@ -27,7 +27,7 @@ pub enum MoveResult {
 
 impl Snake {
     pub fn new(starting_point: Point, grid: &Grid) -> Result<Snake, String> {
-        if !grid.within_bounds(&starting_point) {
+        if !grid.in_bounds(&starting_point) {
             return Err(String::from("Starting point outside the grid bounds"));
         }
         let mut occupancy = vec![false; (grid.width() * grid.height()) as usize];

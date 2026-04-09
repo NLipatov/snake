@@ -1,4 +1,5 @@
 use crate::grid::GridCell::{Empty, Food, Wall};
+use crate::grid_geometry::GridGeometry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum GridCell {
@@ -20,8 +21,7 @@ impl Point {
 }
 
 pub struct Grid {
-    width: i32,
-    height: i32,
+    grid_geometry: GridGeometry,
     cells: Vec<GridCell>,
 }
 
@@ -38,34 +38,35 @@ impl Grid {
             }
         }
         Grid {
-            width,
-            height,
             cells,
+            grid_geometry: GridGeometry::new(width, height),
         }
     }
     pub fn height(&self) -> i32 {
-        self.height
+        self.grid_geometry.height()
     }
     pub fn width(&self) -> i32 {
-        self.width
+        self.grid_geometry.width()
     }
-    fn index(&self, point: &Point) -> usize {
-        point.y as usize * self.width as usize + point.x as usize
-    }
-    pub fn cell(&self, at: &Point) -> &GridCell {
-        &self.cells[self.index(at)]
+    pub fn cell(&self, at: &Point) -> Option<&GridCell> {
+        if let Some(idx) = self.grid_geometry.index(at) {
+            return Some(&self.cells[idx]);
+        }
+        None
     }
     pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
-        let idx = self.index(at);
-        self.cells[idx] = cell;
-    }
-    pub fn on_food_consumed(&mut self, at: &Point) {
-        let idx = self.index(at);
-        if self.cells[idx] == Food {
-            self.cells[idx] = Empty;
+        if let Some(idx) = self.grid_geometry.index(at) {
+            self.cells[idx] = cell;
         }
     }
-    pub fn within_bounds(&self, at: &Point) -> bool {
-        at.x >= 0 && at.y >= 0 && at.x < self.width() && at.y < self.height()
+    pub fn on_food_consumed(&mut self, at: &Point) {
+        if let Some(idx) = self.grid_geometry.index(at) {
+            if self.cells[idx] == Food {
+                self.cells[idx] = Empty;
+            }
+        }
+    }
+    pub fn in_bounds(&self, point: &Point) -> bool {
+        self.grid_geometry.in_bounds(point)
     }
 }

@@ -1,4 +1,3 @@
-use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::{Write, stdout};
@@ -97,8 +96,7 @@ impl Renderer {
         }
     }
     fn render_halfbox<W: Write>(&self, out: &mut W, up_color: &str, bottom_color: &str) {
-        write!(out, "{}{}▀{}", up_color, bottom_color, RESET)
-            .expect("could not write half box")
+        write!(out, "{}{}▀{}", up_color, bottom_color, RESET).expect("could not write half box")
     }
     fn render_top_half<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}▀{}", color, RESET).expect("could not write top half")
@@ -183,11 +181,14 @@ impl RenderCell {
         if snake.occupies(at) {
             return RenderCell::Snake;
         }
-        match grid.cell(at) {
-            Empty => RenderCell::Empty,
-            GridCell::Food => RenderCell::Food,
-            GridCell::Wall => RenderCell::Wall,
+        if let Some(cell) = grid.cell(at) {
+            return match cell {
+                GridCell::Wall => RenderCell::Wall,
+                GridCell::Food => RenderCell::Food,
+                _ => RenderCell::Empty,
+            };
         }
+        RenderCell::Empty
     }
     fn to_color(&self) -> Option<Color> {
         match self {
