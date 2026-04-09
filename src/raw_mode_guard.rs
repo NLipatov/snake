@@ -9,7 +9,10 @@ impl RawModeGuard {
     #[allow(clippy::new_without_default)]
     pub fn new() -> RawModeGuard {
         enable_raw_mode().expect("could not enable raw mode");
-        execute!(stdout(), Hide).expect("could not hide cursor");
+        if let Err(err) = execute!(stdout(), Hide) {
+            let _ = disable_raw_mode();
+            panic!("could not hide cursor: {err}");
+        }
         RawModeGuard {}
     }
 }
