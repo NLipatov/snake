@@ -4,7 +4,7 @@ use crate::game::Command::{
 use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
-use crate::renderer::{RenderState, Renderer};
+use crate::renderer::Renderer;
 use crate::snake::{Direction, MoveResult, Snake};
 use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
@@ -87,8 +87,7 @@ impl Game {
                 self.spawn_food();
             }
             let score = self.snake.logical_len().saturating_sub(1);
-            let render_state = RenderState::new(&self.grid, &self.snake, score);
-            self.renderer.render(render_state);
+            self.renderer.render(&self.grid, &self.snake, score);
             std::thread::sleep(Duration::from_millis(115));
         }
     }
@@ -118,7 +117,7 @@ impl Game {
 mod tests {
     use super::Game;
     use crate::grid::{Grid, GridCell, Point};
-    use crate::renderer::{RenderState, Renderer};
+    use crate::renderer::Renderer;
     use crate::snake::Snake;
     use crate::terminal::Terminal;
 
@@ -206,13 +205,12 @@ mod tests {
     }
 
     #[test]
-    fn render_state_uses_current_grid_snake_and_score() {
+    fn game_exposes_current_grid_snake_and_score() {
         let mut game = game_with_probability(0);
         game.snake.grow();
-        let render_state = RenderState::new(&game.grid, &game.snake, game.score());
 
-        assert_eq!(render_state.grid().width(), 8);
-        assert!(render_state.snake().occupies(&point(3, 3)));
-        assert_eq!(render_state.score(), 1);
+        assert_eq!(game.grid.width(), 8);
+        assert!(game.snake.occupies(&point(3, 3)));
+        assert_eq!(game.score(), 1);
     }
 }

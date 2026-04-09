@@ -1,31 +1,7 @@
 use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
-use std::io::Write;
-
-pub struct RenderState<'a> {
-    grid: &'a Grid,
-    snake: &'a Snake,
-    score: usize,
-}
-
-impl<'a> RenderState<'a> {
-    pub fn new(grid: &'a Grid, snake: &'a Snake, score: usize) -> Self {
-        Self { grid, snake, score }
-    }
-
-    pub fn grid(&self) -> &'a Grid {
-        self.grid
-    }
-
-    pub fn snake(&self) -> &'a Snake {
-        self.snake
-    }
-
-    pub fn score(&self) -> usize {
-        self.score
-    }
-}
+use std::io::{Write, stdout};
 
 pub struct Renderer {
     preallocated_work_frame: Option<Frame>,
@@ -48,46 +24,42 @@ impl Renderer {
     fn clear<W: Write>(&self, out: &mut W) {
         write!(out, "\x1B[2J").expect("could not clear screen");
     }
-    pub fn render(&mut self, render_state: RenderState<'_>) {
-        let mut stdout = std::io::stdout();
-        self.render_to(&mut stdout, render_state);
+    pub fn render(&mut self, grid: &Grid, snake: &Snake, score: usize) {
+        let mut out = stdout();
+        self.render_to(&mut out, grid, snake, score);
     }
-    fn render_to<W: Write>(&mut self, out: &mut W, render_state: RenderState<'_>) {
+    fn render_to<W: Write>(&mut self, out: &mut W, grid: &Grid, snake: &Snake, score: usize) {
         if self.displayed_frame.is_none() {
             self.clear(out)
         }
-        self.render_header(out, &render_state);
-        self.render_grid(out, &render_state);
-        let footer_row = 2 + ((render_state.grid.height() + 1) / 2) as usize;
+        self.render_header(out, score);
+        self.render_grid(out, snake, grid);
+        let footer_row = 2 + ((grid.height() + 1) / 2) as usize;
         self.move_cursor(out, footer_row, 1);
         out.flush().expect("could not flush stdout");
     }
-    fn render_header<W: Write>(&self, out: &mut W, render_state: &RenderState<'_>) {
+    fn render_header<W: Write>(&self, out: &mut W, score: usize) {
         self.move_cursor(out, 1, 1);
-        write!(
-            out,
-            "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}",
-            render_state.score
-        )
-        .expect("could not write header");
+        write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
+            .expect("could not write header");
     }
-    fn render_grid<W: Write>(&mut self, out: &mut W, render_state: &RenderState<'_>) {
+    fn render_grid<W: Write>(&mut self, out: &mut W, snake: &Snake, grid: &Grid) {
         if self.preallocated_work_frame.is_none() {
             self.preallocated_work_frame = Option::from(Frame::new(
-                render_state.grid.width() as usize,
-                ((render_state.grid.height() + 1) / 2) as usize,
+                grid.width() as usize,
+                ((grid.height() + 1) / 2) as usize,
             ))
         }
         let mut frame = self.preallocated_work_frame.take().unwrap();
         let mut y = 0;
-        while y < render_state.grid.height() {
+        while y < grid.height() {
             let term_y = (y / 2) as usize;
-            for x in 0..render_state.grid.width() {
+            for x in 0..grid.width() {
                 let top_point = Point::new(x, y);
                 let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(render_state.grid, render_state.snake, &top_point);
-                let bottom = if y + 1 < render_state.grid.height() {
-                    RenderCell::new(render_state.grid, render_state.snake, &bottom_point)
+                let top = RenderCell::new(grid, snake, &top_point);
+                let bottom = if y + 1 < grid.height() {
+                    RenderCell::new(grid, snake, &bottom_point)
                 } else {
                     RenderCell::Empty
                 };
@@ -125,7 +97,8 @@ impl Renderer {
         }
     }
     fn render_halfbox<W: Write>(&self, out: &mut W, up_color: &str, bottom_color: &str) {
-        write!(out, "{}{}▀{}", up_color, bottom_color, RESET).expect("could not write half box")
+        write!(out, "{}{}▀{}", up_color, bottom_color, RESET)
+            .expect("could not write half box")
     }
     fn render_top_half<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}▀{}", color, RESET).expect("could not write top half")
@@ -136,7 +109,7 @@ impl Renderer {
     fn render_fullbox<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}█{}", color, RESET).expect("could not write full box")
     }
-    fn move_cursor(&self, out: &mut impl Write, row: usize, col: usize) {
+    fn move_cursor<W: Write>(&self, out: &mut W, row: usize, col: usize) {
         write!(out, "\x1B[{};{}H", row, col).expect("could not move cursor");
     }
 }
@@ -239,7 +212,7 @@ impl RenderCell {
 mod tests {
     use super::{
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
-        RenderCell, RenderState, Renderer,
+        RenderCell, Renderer,
     };
     use crate::grid::{Grid, GridCell, Point};
     use crate::snake::Snake;
@@ -249,25 +222,26 @@ mod tests {
     }
 
     #[test]
-    fn render_state_new_keeps_grid_snake_and_score() {
+    fn render_accepts_grid_snake_and_score() {
+        let mut renderer = Renderer::new();
         let grid = Grid::new(5, 5);
         let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
-        let render_state = RenderState::new(&grid, &snake, 7);
+        let mut out = Vec::new();
 
-        assert_eq!(render_state.grid().width(), 5);
-        assert!(render_state.snake().occupies(&point(2, 2)));
-        assert_eq!(render_state.score(), 7);
+        renderer.render_to(&mut out, &grid, &snake, 7);
+
+        let output = String::from_utf8(out).expect("render should be utf-8");
+
+        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}7{RESET}")));
+        assert!(output.contains("\x1B[2;1H"));
     }
 
     #[test]
     fn render_header_writes_dimmed_score_line() {
         let renderer = Renderer::new();
-        let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
-        let render_state = RenderState::new(&grid, &snake, 3);
         let mut out = Vec::new();
 
-        renderer.render_header(&mut out, &render_state);
+        renderer.render_header(&mut out, 3);
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
@@ -282,10 +256,9 @@ mod tests {
         let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         grid.change_cell(&point(3, 3), GridCell::Food);
-        let render_state = RenderState::new(&grid, &snake, 0);
         let mut out = Vec::new();
 
-        renderer.render_grid(&mut out, &render_state);
+        renderer.render_grid(&mut out, &snake, &grid);
 
         let output = String::from_utf8(out).expect("grid should be utf-8");
 
@@ -304,10 +277,9 @@ mod tests {
         let mut grid = Grid::new(5, 5);
         let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
-        let render_state = RenderState::new(&grid, &snake, 1);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, render_state);
+        renderer.render_to(&mut out, &grid, &snake, 1);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
@@ -327,8 +299,8 @@ mod tests {
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, RenderState::new(&grid, &snake, 1));
-        renderer.render_to(&mut second_out, RenderState::new(&grid, &snake, 1));
+        renderer.render_to(&mut first_out, &grid, &snake, 1);
+        renderer.render_to(&mut second_out, &grid, &snake, 1);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -348,8 +320,8 @@ mod tests {
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, RenderState::new(&grid, &first_snake, 0));
-        renderer.render_to(&mut second_out, RenderState::new(&grid, &second_snake, 0));
+        renderer.render_to(&mut first_out, &grid, &first_snake, 0);
+        renderer.render_to(&mut second_out, &grid, &second_snake, 0);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
