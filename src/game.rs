@@ -77,15 +77,12 @@ impl Game {
                 break;
             }
             match self.grid.cell(&head) {
-                None => {}
-                Some(cell) => match cell {
-                    Wall => break,
-                    Food => {
-                        self.snake.grow();
-                        self.grid.on_food_consumed(&head)
-                    }
-                    _ => (),
-                },
+                Wall => break,
+                Food => {
+                    self.snake.grow();
+                    self.grid.on_food_consumed(&head)
+                }
+                _ => (),
             }
             if self.should_spawn_food() {
                 self.spawn_food();
@@ -108,7 +105,8 @@ impl Game {
         self.spawn_food_at(&point);
     }
     fn spawn_food_at(&mut self, point: &Point) {
-        if let Some(Empty) = self.grid.cell(point)
+        if self.grid.in_bounds(point)
+            && matches!(self.grid.cell(point), Empty)
             && !self.snake.occupies(point)
         {
             self.grid.change_cell(point, Food);
@@ -170,7 +168,7 @@ mod tests {
 
         game.spawn_food_at(&point(4, 4));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), Some(&GridCell::Food));
+        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
     }
 
     #[test]
@@ -179,7 +177,7 @@ mod tests {
 
         game.spawn_food_at(&point(3, 3));
 
-        assert_eq!(game.grid.cell(&point(3, 3)), Some(&GridCell::Empty));
+        assert_eq!(game.grid.cell(&point(3, 3)), &GridCell::Empty);
     }
 
     #[test]
@@ -190,8 +188,8 @@ mod tests {
         game.spawn_food_at(&point(4, 4));
         game.spawn_food_at(&point(0, 0));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), Some(&GridCell::Food));
-        assert_eq!(game.grid.cell(&point(0, 0)), Some(&GridCell::Wall));
+        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
+        assert_eq!(game.grid.cell(&point(0, 0)), &GridCell::Wall);
     }
 
     #[test]

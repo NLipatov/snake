@@ -21,13 +21,21 @@ impl Point {
 }
 
 pub struct Grid {
-    grid_geometry: GridGeometry,
+    geometry: GridGeometry,
     cells: Vec<GridCell>,
 }
 
 impl Grid {
     pub fn new(width: i32, height: i32) -> Grid {
-        let mut cells = Vec::with_capacity((height * width) as usize);
+        let geometry = GridGeometry::new(width, height);
+        let cells = Grid::generate_grid(&geometry);
+        Grid { cells, geometry }
+    }
+    fn generate_grid(geometry: &GridGeometry) -> Vec<GridCell> {
+        let height = geometry.height();
+        let width = geometry.width();
+        let capacity = (height * width) as usize;
+        let mut cells = Vec::with_capacity(capacity);
         for y in 0..height {
             for x in 0..width {
                 if y == 0 || y == height - 1 || x == 0 || x == width - 1 {
@@ -37,36 +45,34 @@ impl Grid {
                 }
             }
         }
-        Grid {
-            cells,
-            grid_geometry: GridGeometry::new(width, height),
-        }
+        cells
     }
     pub fn height(&self) -> i32 {
-        self.grid_geometry.height()
+        self.geometry.height()
     }
     pub fn width(&self) -> i32 {
-        self.grid_geometry.width()
+        self.geometry.width()
     }
-    pub fn cell(&self, at: &Point) -> Option<&GridCell> {
-        if let Some(idx) = self.grid_geometry.index(at) {
-            return Some(&self.cells[idx]);
-        }
-        None
+    pub fn cell(&self, at: &Point) -> &GridCell {
+        let idx = self
+            .geometry
+            .index(at)
+            .expect("point should be withing grid bounds");
+        &self.cells[idx]
     }
     pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
-        if let Some(idx) = self.grid_geometry.index(at) {
+        if let Some(idx) = self.geometry.index(at) {
             self.cells[idx] = cell;
         }
     }
     pub fn on_food_consumed(&mut self, at: &Point) {
-        if let Some(idx) = self.grid_geometry.index(at) {
+        if let Some(idx) = self.geometry.index(at) {
             if self.cells[idx] == Food {
                 self.cells[idx] = Empty;
             }
         }
     }
     pub fn in_bounds(&self, point: &Point) -> bool {
-        self.grid_geometry.in_bounds(point)
+        self.geometry.in_bounds(point)
     }
 }

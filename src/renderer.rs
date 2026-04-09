@@ -181,14 +181,11 @@ impl RenderCell {
         if snake.occupies(at) {
             return RenderCell::Snake;
         }
-        if let Some(cell) = grid.cell(at) {
-            return match cell {
-                GridCell::Wall => RenderCell::Wall,
-                GridCell::Food => RenderCell::Food,
-                _ => RenderCell::Empty,
-            };
+        match grid.cell(at) {
+            GridCell::Wall => RenderCell::Wall,
+            GridCell::Food => RenderCell::Food,
+            _ => RenderCell::Empty,
         }
-        RenderCell::Empty
     }
     fn to_color(&self) -> Option<Color> {
         match self {
