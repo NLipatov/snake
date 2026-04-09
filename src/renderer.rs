@@ -28,7 +28,8 @@ impl<'a> RenderState<'a> {
 }
 
 pub struct Renderer {
-    prev_frame: Option<Frame>,
+    preallocated_work_frame: Option<Frame>,
+    displayed_frame: Option<Frame>,
 }
 
 impl Default for Renderer {
@@ -39,7 +40,10 @@ impl Default for Renderer {
 
 impl Renderer {
     pub fn new() -> Renderer {
-        Renderer { prev_frame: None }
+        Renderer {
+            preallocated_work_frame: None,
+            displayed_frame: None,
+        }
     }
     fn clear<W: Write>(&self, out: &mut W) {
         write!(out, "\x1B[2J").expect("could not clear screen");
@@ -49,7 +53,7 @@ impl Renderer {
         self.render_to(&mut stdout, render_state);
     }
     fn render_to<W: Write>(&mut self, out: &mut W, render_state: RenderState<'_>) {
-        if self.prev_frame.is_none() {
+        if self.displayed_frame.is_none() {
             self.clear(out)
         }
         self.render_header(out, &render_state);
@@ -68,10 +72,13 @@ impl Renderer {
         .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, render_state: &RenderState<'_>) {
-        let mut new_frame = Frame::new(
-            render_state.grid.width() as usize,
-            ((render_state.grid.height() + 1) / 2) as usize,
-        );
+        if self.preallocated_work_frame.is_none() {
+            self.preallocated_work_frame = Option::from(Frame::new(
+                render_state.grid.width() as usize,
+                ((render_state.grid.height() + 1) / 2) as usize,
+            ))
+        }
+        let mut frame = self.preallocated_work_frame.take().unwrap();
         let mut y = 0;
         while y < render_state.grid.height() {
             let term_y = (y / 2) as usize;
@@ -84,22 +91,22 @@ impl Renderer {
                 } else {
                     RenderCell::Empty
                 };
-                new_frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
-                if match self.prev_frame.as_ref() {
+                frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
+                if match self.displayed_frame.as_ref() {
                     None => true,
                     Some(prev_frame) => {
-                        prev_frame.get(x as usize, term_y) != new_frame.get(x as usize, term_y)
+                        prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
                     }
                 } {
                     let row = 2 + term_y;
                     let col = 1 + x as usize;
                     self.move_cursor(out, row, col);
-                    self.render_cell(out, new_frame.get(x as usize, term_y));
+                    self.render_cell(out, frame.get(x as usize, term_y));
                 }
             }
             y += 2;
         }
-        self.prev_frame = Some(new_frame)
+        self.preallocated_work_frame = self.displayed_frame.replace(frame);
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -336,10 +343,8 @@ mod tests {
     fn second_render_with_changed_state_updates_only_changed_cells() {
         let mut renderer = Renderer::new();
         let grid = Grid::new(5, 5);
-        let first_snake =
-            Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
-        let second_snake =
-            Snake::new(Point::new(3, 2), &grid).expect("snake should fit in grid");
+        let first_snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let second_snake = Snake::new(Point::new(3, 2), &grid).expect("snake should fit in grid");
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
