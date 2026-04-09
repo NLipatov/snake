@@ -1,4 +1,5 @@
-use snake::grid::{Grid, Point};
+use snake::grid::Point;
+use snake::grid_geometry::GridGeometry;
 use snake::snake::{Direction, MoveResult, Snake};
 
 fn point(x: i32, y: i32) -> Point {
@@ -6,8 +7,8 @@ fn point(x: i32, y: i32) -> Point {
 }
 
 fn snake_at(starting_point: Point) -> Snake {
-    let grid = Grid::new(8, 8);
-    Snake::new(starting_point, &grid).expect("snake should fit in test grid")
+    let geometry = GridGeometry::new(8, 8);
+    Snake::new(starting_point, geometry).expect("snake should fit in test grid")
 }
 
 #[test]
@@ -188,6 +189,29 @@ fn snake_does_not_report_self_collision_for_distinct_body() {
     assert!(matches!(snake.move_snake(), MoveResult::Moved));
     snake.grow();
     assert!(matches!(snake.move_snake(), MoveResult::Moved));
+}
+
+#[test]
+fn snake_can_move_into_old_tail_cell_without_growing() {
+    let mut snake = snake_at(point(2, 2));
+
+    snake.grow();
+    assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+    snake.grow();
+    snake.set_direction(Direction::Down);
+    assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+    snake.grow();
+    snake.set_direction(Direction::Left);
+    assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+    snake.set_direction(Direction::Up);
+
+    assert!(matches!(snake.move_snake(), MoveResult::Moved));
+    assert_eq!(snake.head(), point(2, 2));
+    assert_eq!(snake.logical_len(), 4);
+    assert!(snake.occupies(&point(2, 2)));
 }
 
 #[test]

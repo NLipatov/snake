@@ -1,5 +1,6 @@
 use crate::grid::Point;
 
+#[derive(Copy, Clone)]
 pub struct GridGeometry {
     width: i32,
     height: i32,

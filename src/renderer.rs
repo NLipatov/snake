@@ -213,6 +213,7 @@ mod tests {
         RenderCell, Renderer,
     };
     use crate::grid::{Grid, GridCell, Point};
+    use crate::grid_geometry::GridGeometry;
     use crate::snake::Snake;
 
     fn point(x: i32, y: i32) -> Point {
@@ -222,8 +223,9 @@ mod tests {
     #[test]
     fn render_accepts_grid_snake_and_score() {
         let mut renderer = Renderer::new();
-        let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         let mut out = Vec::new();
 
         renderer.render_to(&mut out, &grid, &snake, 7);
@@ -250,8 +252,9 @@ mod tests {
     #[test]
     fn render_grid_writes_mixed_cells_with_cursor_moves() {
         let mut renderer = Renderer::new();
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         grid.change_cell(&point(3, 3), GridCell::Food);
         let mut out = Vec::new();
@@ -272,8 +275,9 @@ mod tests {
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
         let mut renderer = Renderer::new();
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         let mut out = Vec::new();
 
@@ -292,8 +296,9 @@ mod tests {
     #[test]
     fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
         let mut renderer = Renderer::new();
-        let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
@@ -312,9 +317,12 @@ mod tests {
     #[test]
     fn second_render_with_changed_state_updates_only_changed_cells() {
         let mut renderer = Renderer::new();
-        let grid = Grid::new(5, 5);
-        let first_snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
-        let second_snake = Snake::new(Point::new(3, 2), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let first_snake =
+            Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let second_snake =
+            Snake::new(Point::new(3, 2), geometry).expect("snake should fit in grid");
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
@@ -334,9 +342,10 @@ mod tests {
 
     #[test]
     fn render_cell_prefers_snake_over_grid_contents() {
-        let mut grid = Grid::new(5, 5);
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
         grid.change_cell(&point(2, 2), GridCell::Food);
-        let snake = Snake::new(Point::new(2, 2), &grid).expect("snake should fit in grid");
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
 
         assert!(matches!(
             RenderCell::new(&grid, &snake, &point(2, 2)),
@@ -346,8 +355,9 @@ mod tests {
 
     #[test]
     fn render_cell_reads_food_wall_and_empty_from_grid() {
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(1, 1), &grid).expect("snake should fit in grid");
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(1, 1), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 2), GridCell::Food);
 
         assert!(matches!(

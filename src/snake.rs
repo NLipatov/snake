@@ -1,4 +1,5 @@
-use crate::grid::{Grid, Point};
+use crate::grid::Point;
+use crate::grid_geometry::GridGeometry;
 use crate::snake::Direction::{Down, Left, Right, Up};
 use crate::snake::MoveResult::{Moved, SelfCollision};
 use std::collections::VecDeque;
@@ -8,7 +9,7 @@ pub struct Snake {
     direction: Direction,
     pending_growth: usize,
     occupancy: Vec<bool>,
-    grid_width: usize,
+    grid_geometry: GridGeometry,
 }
 
 #[derive(PartialEq, Eq)]
@@ -26,18 +27,24 @@ pub enum MoveResult {
 }
 
 impl Snake {
-    pub fn new(starting_point: Point, grid: &Grid) -> Result<Snake, String> {
-        if !grid.in_bounds(&starting_point) {
+    pub fn new(starting_point: Point, grid_geometry: GridGeometry) -> Result<Snake, String> {
+        let height = grid_geometry.height();
+        let width = grid_geometry.width();
+        let capacity = (width * height) as usize;
+        if !grid_geometry.in_bounds(&starting_point) {
             return Err(String::from("Starting point outside the grid bounds"));
         }
-        let mut occupancy = vec![false; (grid.width() * grid.height()) as usize];
-        occupancy[(starting_point.y * grid.width() + starting_point.x) as usize] = true;
+        let mut occupancy = vec![false; capacity];
+        let starting_idx = grid_geometry
+            .index(&starting_point)
+            .expect("starting point should be within grid bounds");
+        occupancy[starting_idx] = true;
         let mut snake = Snake {
             body: VecDeque::new(),
             direction: Right,
             pending_growth: 0,
             occupancy,
-            grid_width: grid.width() as usize,
+            grid_geometry,
         };
         snake.body.push_front(starting_point);
         Ok(snake)
@@ -53,19 +60,36 @@ impl Snake {
             Left => Point::new(old_head.x - 1, old_head.y),
             Right => Point::new(old_head.x + 1, old_head.y),
         };
-        if self.occupies(&new_head) {
-            return SelfCollision;
-        }
-        self.body.push_front(new_head);
-        if let Some(idx) = self.occupancy_index(&new_head) {
-            self.occupancy[idx] = true;
-        }
-        if self.pending_growth > 0 {
-            self.pending_growth -= 1;
-        } else if let Some(old_tail) = self.body.pop_back() {
-            if let Some(idx) = self.occupancy_index(&old_tail) {
+        let growing = self.pending_growth > 0;
+        let old_tail = if growing {
+            None
+        } else {
+            self.body.back().copied()
+        };
+
+        if let Some(tail) = old_tail {
+            if let Some(idx) = self.grid_geometry.index(&tail) {
                 self.occupancy[idx] = false;
             }
+        }
+
+        if self.occupies(&new_head) {
+            if let Some(tail) = old_tail {
+                if let Some(idx) = self.grid_geometry.index(&tail) {
+                    self.occupancy[idx] = true;
+                }
+            }
+            return SelfCollision;
+        }
+
+        self.body.push_front(new_head);
+        if let Some(idx) = self.grid_geometry.index(&new_head) {
+            self.occupancy[idx] = true;
+        }
+        if growing {
+            self.pending_growth -= 1;
+        } else {
+            self.body.pop_back();
         }
         Moved
     }
@@ -83,22 +107,11 @@ impl Snake {
         self.pending_growth += 1;
     }
     pub fn occupies(&self, point: &Point) -> bool {
-        self.occupancy_index(point)
+        self.grid_geometry
+            .index(point)
             .and_then(|idx| self.occupancy.get(idx))
             .copied()
             .unwrap_or(false)
-    }
-    fn occupancy_index(&self, point: &Point) -> Option<usize> {
-        if point.x < 0 || point.y < 0 {
-            return None;
-        }
-        let idx = (point.y as usize)
-            .checked_mul(self.grid_width)?
-            .checked_add(point.x as usize)?;
-        match idx < self.occupancy.len() {
-            true => Some(idx),
-            false => None,
-        }
     }
     pub fn logical_len(&self) -> usize {
         self.body.len() + self.pending_growth

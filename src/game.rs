@@ -121,6 +121,7 @@ impl Game {
 mod tests {
     use super::Game;
     use crate::grid::{Grid, GridCell, Point};
+    use crate::grid_geometry::GridGeometry;
     use crate::renderer::Renderer;
     use crate::snake::Snake;
     use crate::terminal::Terminal;
@@ -130,8 +131,9 @@ mod tests {
     }
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
-        let grid = Grid::new(8, 8);
-        let snake = match Snake::new(Point::new(3, 3), &grid) {
+        let geometry = GridGeometry::new(8, 8);
+        let grid = Grid::new(geometry);
+        let snake = match Snake::new(Point::new(3, 3), geometry) {
             Ok(snake) => snake,
             Err(e) => panic!("{}", e),
         };

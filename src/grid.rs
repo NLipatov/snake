@@ -26,8 +26,7 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(width: i32, height: i32) -> Grid {
-        let geometry = GridGeometry::new(width, height);
+    pub fn new(geometry: GridGeometry) -> Grid {
         let cells = Grid::generate_grid(&geometry);
         Grid { cells, geometry }
     }
