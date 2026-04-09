@@ -319,8 +319,7 @@ mod tests {
         let mut renderer = Renderer::new();
         let geometry = GridGeometry::new(5, 5);
         let grid = Grid::new(geometry);
-        let first_snake =
-            Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let first_snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         let second_snake =
             Snake::new(Point::new(3, 2), geometry).expect("snake should fit in grid");
         let mut first_out = Vec::new();
