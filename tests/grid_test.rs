@@ -39,7 +39,7 @@ fn new_grid_marks_inner_cells_as_empty() {
 }
 
 #[test]
-#[should_panic(expected = "point should be withing grid bounds")]
+#[should_panic(expected = "point should be within grid bounds")]
 fn cell_panics_for_points_outside_grid() {
     let grid = grid(5, 5);
 

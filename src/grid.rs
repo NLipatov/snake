@@ -56,7 +56,7 @@ impl Grid {
         let idx = self
             .geometry
             .index(at)
-            .expect("point should be withing grid bounds");
+            .expect("point should be within grid bounds");
         &self.cells[idx]
     }
     pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
