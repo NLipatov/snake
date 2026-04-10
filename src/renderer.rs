@@ -28,7 +28,7 @@ impl Renderer {
         self.render_to(&mut out, grid, snake, score);
     }
     fn render_to<W: Write>(&mut self, out: &mut W, grid: &Grid, snake: &Snake, score: usize) {
-        if self.displayed_frame.is_none() {
+        if self.geometry_changed(grid) || self.displayed_frame.is_none() {
             self.clear(out)
         }
         self.render_header(out, score);
@@ -43,7 +43,7 @@ impl Renderer {
             .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, snake: &Snake, grid: &Grid) {
-        let mut frame = self.ensure_work_frame(grid);
+        let mut frame = self.prepare_work_frame(grid);
         let mut y = 0;
         while y < grid.height() {
             let term_y = (y / 2) as usize;
@@ -73,18 +73,20 @@ impl Renderer {
         }
         self.work_frame = self.displayed_frame.replace(frame);
     }
-    fn ensure_work_frame(&mut self, grid: &Grid) -> Frame {
-        let width = grid.width() as usize;
-        let height = ((grid.height() + 1) / 2) as usize;
-        let geometry_changed = self
-            .work_frame
+    fn geometry_changed(&self, grid: &Grid) -> bool {
+        let dimensions = FrameDimensions::from_grid(grid);
+        self.displayed_frame
             .as_ref()
-            .is_some_and(|pf| !pf.has_dimensions(width, height));
+            .is_some_and(|pf| !pf.has_dimensions(&dimensions))
+    }
+    fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
+        let geometry_changed = self.geometry_changed(grid);
         if geometry_changed {
             self.displayed_frame = None;
         }
         if self.work_frame.is_none() || geometry_changed {
-            self.work_frame = Option::from(Frame::new(width, height))
+            self.work_frame =
+                Option::from(Frame::from_dimensions(&FrameDimensions::from_grid(grid)))
         }
         self.work_frame.take().unwrap()
     }
@@ -136,6 +138,19 @@ struct Color {
     bg: &'static str,
 }
 
+struct FrameDimensions {
+    width: usize,
+    height: usize,
+}
+
+impl FrameDimensions {
+    pub fn from_grid(grid: &Grid) -> FrameDimensions {
+        let width = grid.width() as usize;
+        let height = ((grid.height() + 1) / 2) as usize;
+        FrameDimensions { width, height }
+    }
+}
+
 struct Frame {
     width: usize,
     height: usize,
@@ -143,18 +158,18 @@ struct Frame {
 }
 
 impl Frame {
-    pub fn new(width: usize, height: usize) -> Frame {
+    pub fn from_dimensions(frame_dimensions: &FrameDimensions) -> Frame {
         Frame {
-            height,
-            width,
-            cells: vec![TerminalCell::empty(); width * height],
+            width: frame_dimensions.width,
+            height: frame_dimensions.height,
+            cells: vec![TerminalCell::empty(); frame_dimensions.width * frame_dimensions.height],
         }
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
     }
-    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
-        self.height == height && self.width == width
+    pub fn has_dimensions(&self, frame_dimensions: &FrameDimensions) -> bool {
+        self.height == frame_dimensions.height && self.width == frame_dimensions.width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
