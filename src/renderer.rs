@@ -1,33 +1,11 @@
-use crate::grid::GridCell::Empty;
 use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
-use std::io::Write;
+use std::io::{Write, stdout};
 
-pub struct RenderState<'a> {
-    grid: &'a Grid,
-    snake: &'a Snake,
-    score: usize,
+pub struct Renderer {
+    work_frame: Option<Frame>,
+    displayed_frame: Option<Frame>,
 }
-
-impl<'a> RenderState<'a> {
-    pub fn new(grid: &'a Grid, snake: &'a Snake, score: usize) -> Self {
-        Self { grid, snake, score }
-    }
-
-    pub fn grid(&self) -> &'a Grid {
-        self.grid
-    }
-
-    pub fn snake(&self) -> &'a Snake {
-        self.snake
-    }
-
-    pub fn score(&self) -> usize {
-        self.score
-    }
-}
-
-pub struct Renderer {}
 
 impl Default for Renderer {
     fn default() -> Self {
@@ -37,55 +15,95 @@ impl Default for Renderer {
 
 impl Renderer {
     pub fn new() -> Renderer {
-        Renderer {}
+        Renderer {
+            work_frame: None,
+            displayed_frame: None,
+        }
     }
     fn clear<W: Write>(&self, out: &mut W) {
-        write!(out, "\x1B[2J\x1B[1;1H").expect("could not write clear sequence");
+        write!(out, "\x1B[2J").expect("could not clear screen");
     }
-    pub fn render(&self, render_state: RenderState<'_>) {
-        let mut stdout = std::io::stdout();
-        self.render_to(&mut stdout, render_state);
-        stdout.flush().expect("could not flush stdout");
+    pub fn render(&mut self, grid: &Grid, snake: &Snake, score: usize) {
+        let mut out = stdout();
+        self.render_to(&mut out, grid, snake, score);
     }
-    fn render_to<W: Write>(&self, out: &mut W, render_state: RenderState<'_>) {
-        self.clear(out);
-        self.render_header(out, &render_state);
-        self.render_grid(out, &render_state);
+    fn render_to<W: Write>(&mut self, out: &mut W, grid: &Grid, snake: &Snake, score: usize) {
+        if self.geometry_changed(grid) || self.displayed_frame.is_none() {
+            self.clear(out)
+        }
+        self.render_header(out, score);
+        self.render_grid(out, snake, grid);
+        let footer_row = 2 + ((grid.height() + 1) / 2) as usize;
+        self.move_cursor(out, footer_row, 1);
+        out.flush().expect("could not flush stdout");
     }
-    fn render_header<W: Write>(&self, out: &mut W, render_state: &RenderState<'_>) {
-        write!(
-            out,
-            "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}\r\n",
-            render_state.score
-        )
-        .expect("could not write header");
+    fn render_header<W: Write>(&self, out: &mut W, score: usize) {
+        self.move_cursor(out, 1, 1);
+        write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
+            .expect("could not write header");
     }
-    fn render_grid<W: Write>(&self, out: &mut W, render_state: &RenderState<'_>) {
+    fn render_grid<W: Write>(&mut self, out: &mut W, snake: &Snake, grid: &Grid) {
+        let mut frame = self.prepare_work_frame(grid);
         let mut y = 0;
-        while y < render_state.grid.height() {
-            for x in 0..render_state.grid.width() {
+        while y < grid.height() {
+            let term_y = (y / 2) as usize;
+            for x in 0..grid.width() {
                 let top_point = Point::new(x, y);
                 let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(render_state.grid, render_state.snake, &top_point);
-                let bottom = if y + 1 < render_state.grid.height() {
-                    RenderCell::new(render_state.grid, render_state.snake, &bottom_point)
+                let top = RenderCell::new(grid, snake, &top_point);
+                let bottom = if y + 1 < grid.height() {
+                    RenderCell::new(grid, snake, &bottom_point)
                 } else {
                     RenderCell::Empty
                 };
-                match (top.to_color(), bottom.to_color()) {
-                    (None, None) => {
-                        write!(out, " ").expect("could not write empty cell");
+                frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
+                if match self.displayed_frame.as_ref() {
+                    None => true,
+                    Some(prev_frame) => {
+                        prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
                     }
-                    (None, Some(color)) => self.render_bottom_half(out, color.fg),
-                    (Some(color), None) => self.render_top_half(out, color.fg),
-                    (Some(fg), Some(bg)) => match fg == bg {
-                        true => self.render_fullbox(out, fg.fg),
-                        false => self.render_halfbox(out, fg.fg, bg.bg),
-                    },
+                } {
+                    let row = 2 + term_y;
+                    let col = 1 + x as usize;
+                    self.move_cursor(out, row, col);
+                    self.render_cell(out, frame.get(x as usize, term_y));
                 }
             }
             y += 2;
-            write!(out, "\r\n").expect("could not write row break")
+        }
+        self.work_frame = self.displayed_frame.replace(frame);
+    }
+    fn geometry_changed(&self, grid: &Grid) -> bool {
+        let dimensions = FrameDimensions::from_grid(grid);
+        self.displayed_frame
+            .as_ref()
+            .is_some_and(|pf| !pf.has_dimensions(&dimensions))
+    }
+    fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
+        let geometry_changed = self.geometry_changed(grid);
+        if geometry_changed {
+            self.displayed_frame = None;
+        }
+        if self.work_frame.is_none() || geometry_changed {
+            self.work_frame =
+                Option::from(Frame::from_dimensions(&FrameDimensions::from_grid(grid)))
+        }
+        self.work_frame.take().unwrap()
+    }
+    fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
+        match (
+            terminal_cell.top.to_color(),
+            terminal_cell.bottom.to_color(),
+        ) {
+            (None, None) => {
+                write!(out, " ").expect("could not write empty cell");
+            }
+            (None, Some(color)) => self.render_bottom_half(out, color.fg),
+            (Some(color), None) => self.render_top_half(out, color.fg),
+            (Some(fg), Some(bg)) => match fg == bg {
+                true => self.render_fullbox(out, fg.fg),
+                false => self.render_halfbox(out, fg.fg, bg.bg),
+            },
         }
     }
     fn render_halfbox<W: Write>(&self, out: &mut W, up_color: &str, bottom_color: &str) {
@@ -99,6 +117,9 @@ impl Renderer {
     }
     fn render_fullbox<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}█{}", color, RESET).expect("could not write full box")
+    }
+    fn move_cursor<W: Write>(&self, out: &mut W, row: usize, col: usize) {
+        write!(out, "\x1B[{};{}H", row, col).expect("could not move cursor");
     }
 }
 
@@ -117,6 +138,66 @@ struct Color {
     bg: &'static str,
 }
 
+struct FrameDimensions {
+    width: usize,
+    height: usize,
+}
+
+impl FrameDimensions {
+    pub fn from_grid(grid: &Grid) -> FrameDimensions {
+        let width = grid.width() as usize;
+        let height = ((grid.height() + 1) / 2) as usize;
+        FrameDimensions { width, height }
+    }
+}
+
+struct Frame {
+    width: usize,
+    height: usize,
+    cells: Vec<TerminalCell>,
+}
+
+impl Frame {
+    pub fn from_dimensions(frame_dimensions: &FrameDimensions) -> Frame {
+        Frame {
+            width: frame_dimensions.width,
+            height: frame_dimensions.height,
+            cells: vec![TerminalCell::empty(); frame_dimensions.width * frame_dimensions.height],
+        }
+    }
+    fn index(&self, x: usize, y: usize) -> usize {
+        self.width * y + x
+    }
+    pub fn has_dimensions(&self, frame_dimensions: &FrameDimensions) -> bool {
+        self.height == frame_dimensions.height && self.width == frame_dimensions.width
+    }
+    pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
+        &self.cells[self.index(x, y)]
+    }
+    pub fn set(&mut self, x: usize, y: usize, cell: TerminalCell) {
+        let idx = self.index(x, y);
+        self.cells[idx] = cell;
+    }
+}
+#[derive(Clone, Eq, PartialEq)]
+struct TerminalCell {
+    top: RenderCell,
+    bottom: RenderCell,
+}
+
+impl TerminalCell {
+    pub fn new(top: RenderCell, bottom: RenderCell) -> TerminalCell {
+        TerminalCell { top, bottom }
+    }
+    pub fn empty() -> TerminalCell {
+        TerminalCell {
+            top: RenderCell::Empty,
+            bottom: RenderCell::Empty,
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 enum RenderCell {
     Empty,
     Food,
@@ -130,9 +211,9 @@ impl RenderCell {
             return RenderCell::Snake;
         }
         match grid.cell(at) {
-            Empty => RenderCell::Empty,
-            GridCell::Food => RenderCell::Food,
             GridCell::Wall => RenderCell::Wall,
+            GridCell::Food => RenderCell::Food,
+            _ => RenderCell::Empty,
         }
     }
     fn to_color(&self) -> Option<Color> {
@@ -158,9 +239,10 @@ impl RenderCell {
 mod tests {
     use super::{
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
-        RenderCell, RenderState, Renderer,
+        RenderCell, Renderer,
     };
     use crate::grid::{Grid, GridCell, Point};
+    use crate::grid_geometry::GridGeometry;
     use crate::snake::Snake;
 
     fn point(x: i32, y: i32) -> Point {
@@ -168,43 +250,45 @@ mod tests {
     }
 
     #[test]
-    fn render_state_new_keeps_grid_snake_and_score() {
-        let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
-        let render_state = RenderState::new(&grid, &snake, 7);
+    fn render_accepts_grid_snake_and_score() {
+        let mut renderer = Renderer::new();
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let mut out = Vec::new();
 
-        assert_eq!(render_state.grid().width(), 5);
-        assert!(render_state.snake().occupies(&point(2, 2)));
-        assert_eq!(render_state.score(), 7);
+        renderer.render_to(&mut out, &grid, &snake, 7);
+
+        let output = String::from_utf8(out).expect("render should be utf-8");
+
+        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}7{RESET}")));
+        assert!(output.contains("\x1B[2;1H"));
     }
 
     #[test]
     fn render_header_writes_dimmed_score_line() {
         let renderer = Renderer::new();
-        let grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
-        let render_state = RenderState::new(&grid, &snake, 3);
         let mut out = Vec::new();
 
-        renderer.render_header(&mut out, &render_state);
+        renderer.render_header(&mut out, 3);
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
-            format!("{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}\r\n")
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
         );
     }
 
     #[test]
-    fn render_grid_writes_mixed_cells_and_row_breaks() {
-        let renderer = Renderer::new();
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+    fn render_grid_writes_mixed_cells_with_cursor_moves() {
+        let mut renderer = Renderer::new();
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
         grid.change_cell(&point(3, 3), GridCell::Food);
-        let render_state = RenderState::new(&grid, &snake, 0);
         let mut out = Vec::new();
 
-        renderer.render_grid(&mut out, &render_state);
+        renderer.render_grid(&mut out, &snake, &grid);
 
         let output = String::from_utf8(out).expect("grid should be utf-8");
 
@@ -212,32 +296,84 @@ mod tests {
         assert!(output.contains("█"));
         assert!(output.contains("▀"));
         assert!(output.contains("▄"));
-        assert!(output.contains("\r\n"));
+        assert!(output.contains("\x1B[2;1H"));
+        assert!(output.contains("\x1B[3;3H"));
+        assert!(!output.contains("\r\n"));
     }
 
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
-        let renderer = Renderer::new();
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(2, 2));
+        let mut renderer = Renderer::new();
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 3), GridCell::Food);
-        let render_state = RenderState::new(&grid, &snake, 1);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, render_state);
+        renderer.render_to(&mut out, &grid, &snake, 1);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
         assert!(output.starts_with("\x1B[2J\x1B[1;1H"));
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\r\n")));
+        assert_eq!(output.matches("\x1B[2J").count(), 1);
+        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
+        assert!(output.contains("\x1B[2;1H"));
+        assert!(output.ends_with("\x1B[5;1H"));
         assert!(output.contains("█"));
     }
 
     #[test]
+    fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
+        let mut renderer = Renderer::new();
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let mut first_out = Vec::new();
+        let mut second_out = Vec::new();
+
+        renderer.render_to(&mut first_out, &grid, &snake, 1);
+        renderer.render_to(&mut second_out, &grid, &snake, 1);
+
+        let output = String::from_utf8(second_out).expect("render should be utf-8");
+
+        assert!(!output.contains("\x1B[2J"));
+        assert_eq!(
+            output,
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;1H")
+        );
+    }
+
+    #[test]
+    fn second_render_with_changed_state_updates_only_changed_cells() {
+        let mut renderer = Renderer::new();
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let first_snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let second_snake =
+            Snake::new(Point::new(3, 2), geometry).expect("snake should fit in grid");
+        let mut first_out = Vec::new();
+        let mut second_out = Vec::new();
+
+        renderer.render_to(&mut first_out, &grid, &first_snake, 0);
+        renderer.render_to(&mut second_out, &grid, &second_snake, 0);
+
+        let output = String::from_utf8(second_out).expect("render should be utf-8");
+
+        assert!(!output.contains("\x1B[2J"));
+        assert_eq!(
+            output,
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[5;1H"
+            )
+        );
+    }
+
+    #[test]
     fn render_cell_prefers_snake_over_grid_contents() {
-        let mut grid = Grid::new(5, 5);
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
         grid.change_cell(&point(2, 2), GridCell::Food);
-        let snake = Snake::new(Point::new(2, 2));
+        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
 
         assert!(matches!(
             RenderCell::new(&grid, &snake, &point(2, 2)),
@@ -247,8 +383,9 @@ mod tests {
 
     #[test]
     fn render_cell_reads_food_wall_and_empty_from_grid() {
-        let mut grid = Grid::new(5, 5);
-        let snake = Snake::new(Point::new(1, 1));
+        let geometry = GridGeometry::new(5, 5);
+        let mut grid = Grid::new(geometry);
+        let snake = Snake::new(Point::new(1, 1), geometry).expect("snake should fit in grid");
         grid.change_cell(&point(2, 2), GridCell::Food);
 
         assert!(matches!(

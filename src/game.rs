@@ -4,8 +4,8 @@ use crate::game::Command::{
 use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::{Grid, Point};
 use crate::raw_mode_guard::RawModeGuard;
-use crate::renderer::{RenderState, Renderer};
-use crate::snake::{Direction, Snake};
+use crate::renderer::Renderer;
+use crate::snake::{Direction, MoveResult, Snake};
 use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
 use std::time::Duration;
@@ -69,26 +69,27 @@ impl Game {
                     SnakeMoveRight => self.snake.set_direction(Direction::Right),
                 },
             }
-            self.snake.move_snake();
-            if self.snake.has_self_collision() {
+            if let MoveResult::SelfCollision = self.snake.move_snake() {
                 break;
             }
             let head = self.snake.head();
-            if !self.grid.within_bounds(&head) {
+            if !self.grid.in_bounds(&head) {
                 break;
             }
-            if *self.grid.cell(&head) == Wall {
-                break;
-            }
-            if *self.grid.cell(&head) == Food {
-                self.snake.grow();
-                self.grid.on_food_consumed(&head)
+            match self.grid.cell(&head) {
+                Wall => break,
+                Food => {
+                    self.snake.grow();
+                    self.grid.on_food_consumed(&head)
+                }
+                _ => (),
             }
             if self.should_spawn_food() {
                 self.spawn_food();
             }
-            self.renderer.render(self.render_state());
-            std::thread::sleep(Duration::from_millis(150));
+            let score = self.snake.logical_len().saturating_sub(1);
+            self.renderer.render(&self.grid, &self.snake, score);
+            std::thread::sleep(Duration::from_millis(115));
         }
     }
     fn should_spawn_food(&mut self) -> bool {
@@ -104,15 +105,15 @@ impl Game {
         self.spawn_food_at(&point);
     }
     fn spawn_food_at(&mut self, point: &Point) {
-        if *self.grid.cell(point) == Empty && !self.snake.occupies(point) {
+        if self.grid.in_bounds(point)
+            && matches!(self.grid.cell(point), Empty)
+            && !self.snake.occupies(point)
+        {
             self.grid.change_cell(point, Food);
         }
     }
-    fn render_state(&self) -> RenderState<'_> {
-        RenderState::new(&self.grid, &self.snake, self.score())
-    }
     pub fn score(&self) -> usize {
-        self.snake.len().saturating_sub(1)
+        self.snake.logical_len().saturating_sub(1)
     }
 }
 
@@ -120,6 +121,7 @@ impl Game {
 mod tests {
     use super::Game;
     use crate::grid::{Grid, GridCell, Point};
+    use crate::grid_geometry::GridGeometry;
     use crate::renderer::Renderer;
     use crate::snake::Snake;
     use crate::terminal::Terminal;
@@ -129,10 +131,16 @@ mod tests {
     }
 
     fn game_with_probability(food_spawn_probability: i32) -> Game {
+        let geometry = GridGeometry::new(8, 8);
+        let grid = Grid::new(geometry);
+        let snake = match Snake::new(Point::new(3, 3), geometry) {
+            Ok(snake) => snake,
+            Err(e) => panic!("{}", e),
+        };
         Game::new(
             Terminal::default(),
-            Grid::new(8, 8),
-            Snake::new(Point::new(3, 3)),
+            grid,
+            snake,
             Renderer::new(),
             food_spawn_probability,
         )
@@ -203,13 +211,12 @@ mod tests {
     }
 
     #[test]
-    fn render_state_uses_current_grid_snake_and_score() {
+    fn game_exposes_current_grid_snake_and_score() {
         let mut game = game_with_probability(0);
         game.snake.grow();
-        let render_state = game.render_state();
 
-        assert_eq!(render_state.grid().width(), 8);
-        assert!(render_state.snake().occupies(&point(3, 3)));
-        assert_eq!(render_state.score(), 1);
+        assert_eq!(game.grid.width(), 8);
+        assert!(game.snake.occupies(&point(3, 3)));
+        assert_eq!(game.score(), 1);
     }
 }
