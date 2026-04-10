@@ -7,8 +7,8 @@ use snake::terminal::Terminal;
 
 fn main() {
     let geometry = GridGeometry::new(32, 32);
-    let grid = Grid::new(geometry.clone());
-    let snake = match Snake::new(Point::new(5, 5), geometry.clone()) {
+    let grid = Grid::new(geometry);
+    let snake = match Snake::new(Point::new(5, 5), geometry) {
         Ok(snake) => snake,
         Err(err) => panic!("{}", err),
     };

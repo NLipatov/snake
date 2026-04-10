@@ -65,10 +65,10 @@ impl Grid {
         }
     }
     pub fn on_food_consumed(&mut self, at: &Point) {
-        if let Some(idx) = self.geometry.index(at) {
-            if self.cells[idx] == Food {
-                self.cells[idx] = Empty;
-            }
+        if let Some(idx) = self.geometry.index(at)
+            && self.cells[idx] == Food
+        {
+            self.cells[idx] = Empty;
         }
     }
     pub fn in_bounds(&self, point: &Point) -> bool {

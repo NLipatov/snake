@@ -67,17 +67,17 @@ impl Snake {
             self.body.back().copied()
         };
 
-        if let Some(tail) = old_tail {
-            if let Some(idx) = self.grid_geometry.index(&tail) {
-                self.occupancy[idx] = false;
-            }
+        if let Some(tail) = old_tail
+            && let Some(idx) = self.grid_geometry.index(&tail)
+        {
+            self.occupancy[idx] = false;
         }
 
         if self.occupies(&new_head) {
-            if let Some(tail) = old_tail {
-                if let Some(idx) = self.grid_geometry.index(&tail) {
-                    self.occupancy[idx] = true;
-                }
+            if let Some(tail) = old_tail
+                && let Some(idx) = self.grid_geometry.index(&tail)
+            {
+                self.occupancy[idx] = true;
             }
             return SelfCollision;
         }
