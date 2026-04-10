@@ -3,7 +3,7 @@ use crate::snake::Snake;
 use std::io::{Write, stdout};
 
 pub struct Renderer {
-    preallocated_work_frame: Option<Frame>,
+    work_frame: Option<Frame>,
     displayed_frame: Option<Frame>,
 }
 
@@ -16,7 +16,7 @@ impl Default for Renderer {
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
-            preallocated_work_frame: None,
+            work_frame: None,
             displayed_frame: None,
         }
     }
@@ -43,13 +43,7 @@ impl Renderer {
             .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, snake: &Snake, grid: &Grid) {
-        if self.preallocated_work_frame.is_none() {
-            self.preallocated_work_frame = Option::from(Frame::new(
-                grid.width() as usize,
-                ((grid.height() + 1) / 2) as usize,
-            ))
-        }
-        let mut frame = self.preallocated_work_frame.take().unwrap();
+        let mut frame = self.ensure_work_frame(grid);
         let mut y = 0;
         while y < grid.height() {
             let term_y = (y / 2) as usize;
@@ -77,7 +71,22 @@ impl Renderer {
             }
             y += 2;
         }
-        self.preallocated_work_frame = self.displayed_frame.replace(frame);
+        self.work_frame = self.displayed_frame.replace(frame);
+    }
+    fn ensure_work_frame(&mut self, grid: &Grid) -> Frame {
+        let width = grid.width() as usize;
+        let height = ((grid.height() + 1) / 2) as usize;
+        let geometry_changed = self
+            .work_frame
+            .as_ref()
+            .is_some_and(|pf| !pf.has_dimensions(width, height));
+        if geometry_changed {
+            self.displayed_frame = None;
+        }
+        if self.work_frame.is_none() || geometry_changed {
+            self.work_frame = Option::from(Frame::new(width, height))
+        }
+        self.work_frame.take().unwrap()
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -129,18 +138,23 @@ struct Color {
 
 struct Frame {
     width: usize,
+    height: usize,
     cells: Vec<TerminalCell>,
 }
 
 impl Frame {
     pub fn new(width: usize, height: usize) -> Frame {
         Frame {
+            height,
             width,
             cells: vec![TerminalCell::empty(); width * height],
         }
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
+    }
+    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
+        self.height == height && self.width == width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
