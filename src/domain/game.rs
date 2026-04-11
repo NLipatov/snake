@@ -23,6 +23,10 @@ pub struct Game {
 impl Game {
     pub fn new(grid: Grid, snake: Snake, food_spawn_probability: i32) -> Game {
         let rng = rand::rng();
+        assert!(
+            (0..=100).contains(&food_spawn_probability),
+            "food_spawn_probability must be in 0..=100"
+        );
         Game {
             grid,
             snake,
