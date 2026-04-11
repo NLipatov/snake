@@ -225,6 +225,15 @@ function handleDirectionName(direction) {
   render();
 }
 
+function pressDpadButton(button) {
+  button.classList.add("is-pressed");
+  if (gameOver) {
+    restart();
+    return;
+  }
+  handleDirectionName(button.dataset.direction);
+}
+
 async function main() {
   await init();
   createGame();
@@ -268,18 +277,27 @@ dpadButtons.forEach((button) => {
   };
 
   button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    button.classList.add("is-pressed");
-    if (gameOver) {
-      restart();
+    if (event.pointerType === "touch") {
       return;
     }
-    handleDirectionName(button.dataset.direction);
+    event.preventDefault();
+    pressDpadButton(button);
   });
+
+  button.addEventListener(
+    "touchstart",
+    (event) => {
+      event.preventDefault();
+      pressDpadButton(button);
+    },
+    { passive: false },
+  );
 
   button.addEventListener("pointerup", release);
   button.addEventListener("pointercancel", release);
   button.addEventListener("pointerleave", release);
+  button.addEventListener("touchend", release);
+  button.addEventListener("touchcancel", release);
 });
 
 window.addEventListener("beforeunload", () => {

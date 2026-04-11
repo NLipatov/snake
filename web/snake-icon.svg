@@ -1,12 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#101610"/>
-  <path
-    d="M18 18h16c7.732 0 14 6.268 14 14s-6.268 14-14 14H30c-4.418 0-8 3.582-8 8"
-    fill="none"
-    stroke="#66e39d"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-width="10"
-  />
-  <circle cx="22" cy="54" r="5" fill="#66e39d"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <rect width="64" height="64" fill="#101610"/>
+  <rect x="44" y="4" width="10" height="10" fill="#79f2a3"/>
+  <rect x="32" y="4" width="10" height="10" fill="#54ba7d"/>
+  <rect x="20" y="4" width="10" height="10" fill="#54ba7d"/>
+  <rect x="8" y="4" width="10" height="10" fill="#54ba7d"/>
+
+  <rect x="8" y="16" width="10" height="10" fill="#54ba7d"/>
+  <rect x="8" y="28" width="10" height="10" fill="#54ba7d"/>
+
+  <rect x="20" y="28" width="10" height="10" fill="#54ba7d"/>
+  <rect x="32" y="28" width="10" height="10" fill="#54ba7d"/>
+  <rect x="44" y="28" width="10" height="10" fill="#54ba7d"/>
+
+  <rect x="44" y="40" width="10" height="10" fill="#54ba7d"/>
+  <rect x="44" y="52" width="10" height="10" fill="#54ba7d"/>
+
+  <rect x="32" y="52" width="10" height="10" fill="#54ba7d"/>
+  <rect x="20" y="52" width="10" height="10" fill="#54ba7d"/>
+  <rect x="8" y="52" width="10" height="10" fill="#54ba7d"/>
+
+  <rect x="47" y="7" width="2" height="2" fill="#101610"/>
+  <rect x="47" y="11" width="2" height="2" fill="#101610"/>
 </svg>
