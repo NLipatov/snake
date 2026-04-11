@@ -40,6 +40,9 @@ function isReady() {
 }
 
 function usesTouchControls() {
+  if (!touchControls) {
+    return false;
+  }
   return window.getComputedStyle(touchControls).display !== "none";
 }
 

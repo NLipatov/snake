@@ -537,6 +537,7 @@ canvas {
     --dpad-size: 196px;
     --dpad-thickness: 56px;
     --dpad-arm-size: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+
     position: relative;
     display: block;
     width: var(--dpad-size);
