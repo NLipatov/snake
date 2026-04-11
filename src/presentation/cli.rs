@@ -12,6 +12,11 @@ enum PauseDecision {
     Quit,
 }
 
+pub enum RunResult {
+    GameOver { score: usize },
+    Quit { score: usize },
+}
+
 pub struct Cli {
     game: Game,
     terminal: Terminal,
@@ -26,17 +31,25 @@ impl Cli {
             renderer,
         }
     }
-    pub fn run_loop(&mut self) -> usize {
+    pub fn run_loop(&mut self) -> RunResult {
         let _rmg = RawModeGuard::new();
         self.renderer
             .render(self.game.grid(), self.game.snake(), self.game.score());
         loop {
             if let Some(command) = self.terminal.wait_for_command_async() {
                 match command {
-                    TerminalCommand::Escape => break,
+                    TerminalCommand::Escape => {
+                        return RunResult::Quit {
+                            score: self.game.score(),
+                        };
+                    }
                     TerminalCommand::Space => match self.pause_loop() {
                         Resume => continue,
-                        Quit => break,
+                        Quit => {
+                            return RunResult::Quit {
+                                score: self.game.score(),
+                            };
+                        }
                     },
                     TerminalCommand::Down => self.game.apply_command(GameCommand::Move(Down)),
                     TerminalCommand::Up => self.game.apply_command(GameCommand::Move(Up)),
@@ -53,7 +66,9 @@ impl Cli {
         }
         self.renderer
             .render(self.game.grid(), self.game.snake(), self.game.score());
-        self.game.score()
+        RunResult::GameOver {
+            score: self.game.score(),
+        }
     }
     fn pause_loop(&self) -> PauseDecision {
         loop {

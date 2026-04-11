@@ -1,3 +1,5 @@
+use snake::presentation::cli::RunResult;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     use snake::domain::game::Game;
@@ -16,9 +18,10 @@ fn main() {
     };
     let game = Game::new(grid, snake, 4);
     let mut cli = Cli::new(game, Terminal::default(), Renderer::default());
-    let score = cli.run_loop();
-    println!("Game over!");
-    println!("You've scored: {}", score);
+    match cli.run_loop() {
+        RunResult::GameOver { score } => println!("Game Over! Score: {}", score),
+        RunResult::Quit { score } => println!("Quit! Score: {}", score),
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
