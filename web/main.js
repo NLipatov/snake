@@ -33,6 +33,10 @@ let restartPressTimer;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
 
+function isReady() {
+  return game !== undefined;
+}
+
 function isTouchDevice() {
   return coarsePointerQuery.matches;
 }
@@ -163,12 +167,15 @@ function step() {
 }
 
 function restart() {
+  if (!isReady()) {
+    return;
+  }
   pulseRestartButton();
   createGame();
 }
 
 function togglePause() {
-  if (gameOver) {
+  if (!isReady() || gameOver) {
     return;
   }
   paused = !paused;
@@ -178,7 +185,7 @@ function togglePause() {
 }
 
 function handleDirection(code) {
-  if (gameOver) {
+  if (!isReady() || gameOver) {
     return;
   }
   if (code === "ArrowUp") {
@@ -196,6 +203,9 @@ function handleDirection(code) {
 }
 
 function handleDirectionName(direction) {
+  if (!isReady() || gameOver) {
+    return;
+  }
   if (direction === "up") {
     game.move_up();
   } else if (direction === "down") {
@@ -223,6 +233,9 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "Space") {
+    if (!isReady()) {
+      return;
+    }
     if (gameOver) {
       restart();
       return;
@@ -232,6 +245,9 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "Escape") {
+    if (!isReady()) {
+      return;
+    }
     restart();
     return;
   }
