@@ -98,7 +98,7 @@ mod tests {
     use super::{Game, GameCommand, GameResult};
     use crate::domain::grid::{Grid, GridCell, Point};
     use crate::domain::grid_geometry::GridGeometry;
-    use crate::domain::snake::{Direction, Snake};
+    use crate::domain::snake::{Direction, MoveResult, Snake};
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)
@@ -134,6 +134,26 @@ mod tests {
         for _ in 0..100 {
             assert!(game.should_spawn_food());
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "food_spawn_probability must be in 0..=100")]
+    fn new_panics_when_food_spawn_probability_is_below_zero() {
+        let geometry = GridGeometry::new(8, 8);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(point(3, 3), geometry).expect("snake should fit in grid");
+
+        let _ = Game::new(grid, snake, -1);
+    }
+
+    #[test]
+    #[should_panic(expected = "food_spawn_probability must be in 0..=100")]
+    fn new_panics_when_food_spawn_probability_is_above_hundred() {
+        let geometry = GridGeometry::new(8, 8);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(point(3, 3), geometry).expect("snake should fit in grid");
+
+        let _ = Game::new(grid, snake, 101);
     }
 
     #[test]
@@ -222,6 +242,14 @@ mod tests {
     }
 
     #[test]
+    fn tick_returns_game_over_when_snake_moves_out_of_bounds() {
+        let mut game = game_at(point(7, 3), 0);
+
+        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert_eq!(game.snake().head(), point(8, 3));
+    }
+
+    #[test]
     fn tick_consumes_food_and_increases_score() {
         let mut game = game_with_probability(0);
         game.grid.change_cell(&point(4, 3), GridCell::Food);
@@ -230,5 +258,30 @@ mod tests {
         assert_eq!(game.score(), 1);
         assert_eq!(game.grid().cell(&point(4, 3)), &GridCell::Empty);
         assert_eq!(game.snake().head(), point(4, 3));
+    }
+
+    #[test]
+    fn tick_returns_game_over_when_snake_hits_itself() {
+        let geometry = GridGeometry::new(8, 8);
+        let grid = Grid::new(geometry);
+        let mut snake = Snake::new(point(2, 2), geometry).expect("snake should fit in grid");
+
+        snake.grow();
+        assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+        snake.grow();
+        snake.set_direction(Direction::Down);
+        assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+        snake.grow();
+        snake.set_direction(Direction::Left);
+        assert!(matches!(snake.move_snake(), MoveResult::Moved));
+
+        snake.grow();
+        snake.set_direction(Direction::Up);
+        let mut game = Game::new(grid, snake, 0);
+
+        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert_eq!(game.snake().head(), point(2, 3));
     }
 }

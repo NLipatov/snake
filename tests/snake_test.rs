@@ -12,6 +12,15 @@ fn snake_at(starting_point: Point) -> Snake {
 }
 
 #[test]
+fn new_snake_rejects_starting_point_outside_grid() {
+    let geometry = GridGeometry::new(8, 8);
+
+    let result = Snake::new(point(8, 2), geometry);
+
+    assert!(result.is_err());
+}
+
+#[test]
 fn new_snake_starts_at_given_point() {
     let snake = snake_at(point(5, 5));
 
@@ -241,4 +250,11 @@ fn snake_does_not_occupy_unoccupied_cell() {
     let snake = snake_at(point(2, 2));
 
     assert!(!snake.occupies(&point(2, 3)));
+}
+
+#[test]
+fn snake_is_not_empty_after_construction() {
+    let snake = snake_at(point(2, 2));
+
+    assert!(!snake.is_empty());
 }
