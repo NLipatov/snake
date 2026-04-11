@@ -103,9 +103,7 @@ impl WebGame {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        DEFAULT_HEIGHT, DEFAULT_START_X, DEFAULT_START_Y, DEFAULT_WIDTH, WebGame,
-    };
+    use super::{DEFAULT_HEIGHT, DEFAULT_START_X, DEFAULT_START_Y, DEFAULT_WIDTH, WebGame};
     use crate::domain::game::Game;
     use crate::domain::grid::{Grid, GridCell, Point};
     use crate::domain::grid_geometry::GridGeometry;
