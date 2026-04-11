@@ -8,7 +8,7 @@ const DEFAULT_WIDTH: i32 = 32;
 const DEFAULT_HEIGHT: i32 = 32;
 const DEFAULT_START_X: i32 = 5;
 const DEFAULT_START_Y: i32 = 5;
-const DEFAULT_FOOD_SPAWN_PROBABILITY: i32 = 4;
+const DEFAULT_FOOD_SPAWN_ATTEMPT_PROBABILITY: i32 = 4;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct WebGame {
@@ -24,7 +24,7 @@ impl WebGame {
             DEFAULT_HEIGHT,
             DEFAULT_START_X,
             DEFAULT_START_Y,
-            DEFAULT_FOOD_SPAWN_PROBABILITY,
+            DEFAULT_FOOD_SPAWN_ATTEMPT_PROBABILITY,
         )
     }
 
@@ -33,7 +33,7 @@ impl WebGame {
         height: i32,
         start_x: i32,
         start_y: i32,
-        food_spawn_probability: i32,
+        food_spawn_attempt_probability: i32,
     ) -> Result<WebGame, JsValue> {
         let geometry = GridGeometry::new(width, height);
         let grid = Grid::new(geometry);
@@ -41,7 +41,7 @@ impl WebGame {
             .map_err(|err| JsValue::from_str(&err))?;
 
         Ok(WebGame {
-            game: Game::new(grid, snake, food_spawn_probability),
+            game: Game::new(grid, snake, food_spawn_attempt_probability),
         })
     }
 

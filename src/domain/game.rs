@@ -17,21 +17,21 @@ pub struct Game {
     grid: Grid,
     snake: Snake,
     rng: rngs::ThreadRng,
-    food_spawn_probability: i32,
+    food_spawn_attempt_probability: i32,
 }
 
 impl Game {
-    pub fn new(grid: Grid, snake: Snake, food_spawn_probability: i32) -> Game {
+    pub fn new(grid: Grid, snake: Snake, food_spawn_attempt_probability: i32) -> Game {
         let rng = rand::rng();
         assert!(
-            (0..=100).contains(&food_spawn_probability),
-            "food_spawn_probability must be in 0..=100"
+            (0..=100).contains(&food_spawn_attempt_probability),
+            "food_spawn_attempt_probability must be in 0..=100"
         );
         Game {
             grid,
             snake,
             rng,
-            food_spawn_probability,
+            food_spawn_attempt_probability,
         }
     }
     pub fn apply_command(&mut self, command: GameCommand) {
@@ -57,15 +57,15 @@ impl Game {
             }
             _ => (),
         }
-        if self.should_spawn_food() {
-            self.spawn_food();
+        if self.should_attempt_food_spawn() {
+            self.attempt_food_spawn();
         }
         Running
     }
-    fn should_spawn_food(&mut self) -> bool {
-        self.rng.random_range(0..100) < self.food_spawn_probability
+    fn should_attempt_food_spawn(&mut self) -> bool {
+        self.rng.random_range(0..100) < self.food_spawn_attempt_probability
     }
-    fn spawn_food(&mut self) {
+    fn attempt_food_spawn(&mut self) {
         let max_x = self.grid.width();
         let max_y = self.grid.height();
         let point = Point::new(
@@ -104,41 +104,41 @@ mod tests {
         Point::new(x, y)
     }
 
-    fn game_at(starting_point: Point, food_spawn_probability: i32) -> Game {
+    fn game_at(starting_point: Point, food_spawn_attempt_probability: i32) -> Game {
         let geometry = GridGeometry::new(8, 8);
         let grid = Grid::new(geometry);
         let snake = match Snake::new(starting_point, geometry) {
             Ok(snake) => snake,
             Err(e) => panic!("{}", e),
         };
-        Game::new(grid, snake, food_spawn_probability)
+        Game::new(grid, snake, food_spawn_attempt_probability)
     }
 
-    fn game_with_probability(food_spawn_probability: i32) -> Game {
-        game_at(point(3, 3), food_spawn_probability)
+    fn game_with_probability(food_spawn_attempt_probability: i32) -> Game {
+        game_at(point(3, 3), food_spawn_attempt_probability)
     }
 
     #[test]
-    fn should_spawn_food_is_never_true_at_zero_percent() {
+    fn should_attempt_food_spawn_is_never_true_at_zero_percent() {
         let mut game = game_with_probability(0);
 
         for _ in 0..100 {
-            assert!(!game.should_spawn_food());
+            assert!(!game.should_attempt_food_spawn());
         }
     }
 
     #[test]
-    fn should_spawn_food_is_always_true_at_hundred_percent() {
+    fn should_attempt_food_spawn_is_always_true_at_hundred_percent() {
         let mut game = game_with_probability(100);
 
         for _ in 0..100 {
-            assert!(game.should_spawn_food());
+            assert!(game.should_attempt_food_spawn());
         }
     }
 
     #[test]
-    #[should_panic(expected = "food_spawn_probability must be in 0..=100")]
-    fn new_panics_when_food_spawn_probability_is_below_zero() {
+    #[should_panic(expected = "food_spawn_attempt_probability must be in 0..=100")]
+    fn new_panics_when_food_spawn_attempt_probability_is_below_zero() {
         let geometry = GridGeometry::new(8, 8);
         let grid = Grid::new(geometry);
         let snake = Snake::new(point(3, 3), geometry).expect("snake should fit in grid");
@@ -147,8 +147,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "food_spawn_probability must be in 0..=100")]
-    fn new_panics_when_food_spawn_probability_is_above_hundred() {
+    #[should_panic(expected = "food_spawn_attempt_probability must be in 0..=100")]
+    fn new_panics_when_food_spawn_attempt_probability_is_above_hundred() {
         let geometry = GridGeometry::new(8, 8);
         let grid = Grid::new(geometry);
         let snake = Snake::new(point(3, 3), geometry).expect("snake should fit in grid");
