@@ -28,6 +28,8 @@ impl Cli {
     }
     pub fn run_loop(&mut self) -> usize {
         let _rmg = RawModeGuard::new();
+        self.renderer
+            .render(self.game.grid(), self.game.snake(), self.game.score());
         loop {
             if let Some(command) = self.terminal.wait_for_command_async() {
                 match command {
@@ -49,6 +51,8 @@ impl Cli {
                 .render(self.game.grid(), self.game.snake(), self.game.score());
             std::thread::sleep(Duration::from_millis(115));
         }
+        self.renderer
+            .render(self.game.grid(), self.game.snake(), self.game.score());
         self.game.score()
     }
     fn pause_loop(&self) -> PauseDecision {
