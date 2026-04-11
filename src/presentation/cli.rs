@@ -46,7 +46,7 @@ impl Cli {
                 break;
             }
             self.renderer
-                .render(&self.game.grid(), &self.game.snake(), self.game.score());
+                .render(self.game.grid(), self.game.snake(), self.game.score());
             std::thread::sleep(Duration::from_millis(115));
         }
         self.game.score()
