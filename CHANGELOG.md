@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/NLipatov/snake/compare/v0.1.2...v0.1.3) - 2026-04-11
+
+### Added
+
+- refine mobile dpad and restart prompts
+- add wasm web frontend and pages deployment
+
+### Fixed
+
+- harden touch control detection
+- validate food spawn probability in game constructor
+- distinguish quit from game over in cli flow
+- guard web controls until wasm bootstrap completes
+- render initial and final cli game states
+- remove needless borrows in cli renderer call
+- satisfy cargo fmt in application module
+
+### Other
+
+- rename food spawn attempt probability
+- format web tests imports
+- expand domain and web coverage
+- harden pages deployment workflow
+- remove unnecessary font-family quotes
+- split game logic into layered modules
+- separate game engine from terminal runtime
+
 ## [0.1.2](https://github.com/NLipatov/snake/compare/v0.1.1...v0.1.2) - 2026-04-10
 
 ### Fixed
