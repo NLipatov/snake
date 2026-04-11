@@ -33,7 +33,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+        run: cargo install wasm-pack --version 0.14.0 --locked
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -48,6 +48,7 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     needs: build
     environment:
