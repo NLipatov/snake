@@ -1,10 +1,10 @@
-use crate::cli::PauseDecision::{Quit, Resume};
-use crate::game::GameResult::GameOver;
-use crate::game::{Game, GameCommand};
-use crate::raw_mode_guard::RawModeGuard;
-use crate::renderer::Renderer;
-use crate::snake::Direction::{Down, Left, Right, Up};
-use crate::terminal::{Terminal, TerminalCommand};
+use crate::domain::game::GameResult::GameOver;
+use crate::domain::game::{Game, GameCommand};
+use crate::domain::snake::Direction::{Down, Left, Right, Up};
+use crate::infrastructure::raw_mode_guard::RawModeGuard;
+use crate::infrastructure::terminal::{Terminal, TerminalCommand};
+use crate::presentation::cli::PauseDecision::{Quit, Resume};
+use crate::presentation::renderer::Renderer;
 use std::time::Duration;
 
 enum PauseDecision {

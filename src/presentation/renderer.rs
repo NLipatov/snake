@@ -1,5 +1,5 @@
-use crate::grid::{Grid, GridCell, Point};
-use crate::snake::Snake;
+use crate::domain::grid::{Grid, GridCell, Point};
+use crate::domain::snake::Snake;
 use std::io::{Write, stdout};
 
 #[derive(Default)]
@@ -236,9 +236,9 @@ mod tests {
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
         RenderCell, Renderer,
     };
-    use crate::grid::{Grid, GridCell, Point};
-    use crate::grid_geometry::GridGeometry;
-    use crate::snake::Snake;
+    use crate::domain::grid::{Grid, GridCell, Point};
+    use crate::domain::grid_geometry::GridGeometry;
+    use crate::domain::snake::Snake;
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)

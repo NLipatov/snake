@@ -1,4 +1,4 @@
-use crate::grid::Point;
+use crate::domain::grid::Point;
 
 #[derive(Copy, Clone)]
 pub struct GridGeometry {

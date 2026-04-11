@@ -1,10 +1,10 @@
-use snake::cli::Cli;
-use snake::game::Game;
-use snake::grid::{Grid, Point};
-use snake::grid_geometry::GridGeometry;
-use snake::renderer::Renderer;
-use snake::snake::Snake;
-use snake::terminal::Terminal;
+use snake::domain::game::Game;
+use snake::domain::grid::{Grid, Point};
+use snake::domain::grid_geometry::GridGeometry;
+use snake::domain::snake::Snake;
+use snake::infrastructure::terminal::Terminal;
+use snake::presentation::cli::Cli;
+use snake::presentation::renderer::Renderer;
 
 fn main() {
     let geometry = GridGeometry::new(32, 32);

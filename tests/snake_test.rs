@@ -1,6 +1,6 @@
-use snake::grid::Point;
-use snake::grid_geometry::GridGeometry;
-use snake::snake::{Direction, MoveResult, Snake};
+use snake::domain::grid::Point;
+use snake::domain::grid_geometry::GridGeometry;
+use snake::domain::snake::{Direction, MoveResult, Snake};
 
 fn point(x: i32, y: i32) -> Point {
     Point::new(x, y)

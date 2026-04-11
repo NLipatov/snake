@@ -1,7 +1,7 @@
-use crate::game::GameResult::{GameOver, Running};
-use crate::grid::GridCell::{Empty, Food, Wall};
-use crate::grid::{Grid, Point};
-use crate::snake::{Direction, MoveResult, Snake};
+use crate::domain::game::GameResult::{GameOver, Running};
+use crate::domain::grid::GridCell::{Empty, Food, Wall};
+use crate::domain::grid::{Grid, Point};
+use crate::domain::snake::{Direction, MoveResult, Snake};
 use rand::{RngExt, rngs};
 
 pub enum GameCommand {
@@ -92,9 +92,9 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::{Game, GameCommand, GameResult};
-    use crate::grid::{Grid, GridCell, Point};
-    use crate::grid_geometry::GridGeometry;
-    use crate::snake::{Direction, Snake};
+    use crate::domain::grid::{Grid, GridCell, Point};
+    use crate::domain::grid_geometry::GridGeometry;
+    use crate::domain::snake::{Direction, Snake};
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)
