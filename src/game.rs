@@ -1,96 +1,62 @@
-use crate::game::Command::{
-    Escape, Pause, SnakeMoveDown, SnakeMoveLeft, SnakeMoveRight, SnakeMoveUp,
-};
+use crate::game::GameResult::{GameOver, Running};
 use crate::grid::GridCell::{Empty, Food, Wall};
 use crate::grid::{Grid, Point};
-use crate::raw_mode_guard::RawModeGuard;
-use crate::renderer::Renderer;
 use crate::snake::{Direction, MoveResult, Snake};
-use crate::terminal::Terminal;
 use rand::{RngExt, rngs};
-use std::time::Duration;
 
-pub enum Command {
-    Escape,
-    Pause,
-    SnakeMoveUp,
-    SnakeMoveDown,
-    SnakeMoveLeft,
-    SnakeMoveRight,
+pub enum GameCommand {
+    Move(Direction),
+}
+
+pub enum GameResult {
+    GameOver,
+    Running,
 }
 
 pub struct Game {
-    terminal: Terminal,
     grid: Grid,
     snake: Snake,
-    renderer: Renderer,
     rng: rngs::ThreadRng,
     food_spawn_probability: i32,
 }
 
 impl Game {
-    pub fn new(
-        terminal: Terminal,
-        grid: Grid,
-        snake: Snake,
-        renderer: Renderer,
-        food_spawn_probability: i32,
-    ) -> Game {
+    pub fn new(grid: Grid, snake: Snake, food_spawn_probability: i32) -> Game {
         let rng = rand::rng();
         Game {
-            terminal,
             grid,
             snake,
-            renderer,
             rng,
             food_spawn_probability,
         }
     }
-    pub fn start(&mut self) {
-        let _rmg = RawModeGuard::new();
-        self.run_loop();
-    }
-    fn run_loop(&mut self) {
-        loop {
-            match self.terminal.wait_for_command_async() {
-                None => {}
-                Some(command) => match command {
-                    Escape => break,
-                    Pause => loop {
-                        match self.terminal.wait_for_command_sync() {
-                            Some(Pause) => break,
-                            Some(Escape) => return,
-                            _ => (),
-                        }
-                    },
-                    SnakeMoveUp => self.snake.set_direction(Direction::Up),
-                    SnakeMoveDown => self.snake.set_direction(Direction::Down),
-                    SnakeMoveLeft => self.snake.set_direction(Direction::Left),
-                    SnakeMoveRight => self.snake.set_direction(Direction::Right),
-                },
+    pub fn apply_command(&mut self, command: GameCommand) {
+        match command {
+            GameCommand::Move(direction) => {
+                self.snake.set_direction(direction);
             }
-            if let MoveResult::SelfCollision = self.snake.move_snake() {
-                break;
-            }
-            let head = self.snake.head();
-            if !self.grid.in_bounds(&head) {
-                break;
-            }
-            match self.grid.cell(&head) {
-                Wall => break,
-                Food => {
-                    self.snake.grow();
-                    self.grid.on_food_consumed(&head)
-                }
-                _ => (),
-            }
-            if self.should_spawn_food() {
-                self.spawn_food();
-            }
-            let score = self.snake.logical_len().saturating_sub(1);
-            self.renderer.render(&self.grid, &self.snake, score);
-            std::thread::sleep(Duration::from_millis(115));
         }
+    }
+    pub fn tick(&mut self) -> GameResult {
+        if let MoveResult::SelfCollision = self.snake.move_snake() {
+            return GameOver;
+        }
+        let head = self.snake.head();
+        if !self.grid.in_bounds(&head) {
+            return GameOver;
+        }
+        match self.grid.cell(&head) {
+            Wall => return GameOver,
+            Food => {
+                self.snake.grow();
+                self.grid.on_food_consumed(&head)
+            }
+            _ => (),
+        }
+        if self.should_spawn_food() {
+            self.spawn_food();
+        }
+        Running
     }
     fn should_spawn_food(&mut self) -> bool {
         self.rng.random_range(0..100) < self.food_spawn_probability
@@ -115,35 +81,37 @@ impl Game {
     pub fn score(&self) -> usize {
         self.snake.logical_len().saturating_sub(1)
     }
+    pub fn snake(&self) -> &Snake {
+        &self.snake
+    }
+    pub fn grid(&self) -> &Grid {
+        &self.grid
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Game;
+    use super::{Game, GameCommand, GameResult};
     use crate::grid::{Grid, GridCell, Point};
     use crate::grid_geometry::GridGeometry;
-    use crate::renderer::Renderer;
-    use crate::snake::Snake;
-    use crate::terminal::Terminal;
+    use crate::snake::{Direction, Snake};
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)
     }
 
-    fn game_with_probability(food_spawn_probability: i32) -> Game {
+    fn game_at(starting_point: Point, food_spawn_probability: i32) -> Game {
         let geometry = GridGeometry::new(8, 8);
         let grid = Grid::new(geometry);
-        let snake = match Snake::new(Point::new(3, 3), geometry) {
+        let snake = match Snake::new(starting_point, geometry) {
             Ok(snake) => snake,
             Err(e) => panic!("{}", e),
         };
-        Game::new(
-            Terminal::default(),
-            grid,
-            snake,
-            Renderer::new(),
-            food_spawn_probability,
-        )
+        Game::new(grid, snake, food_spawn_probability)
+    }
+
+    fn game_with_probability(food_spawn_probability: i32) -> Game {
+        game_at(point(3, 3), food_spawn_probability)
     }
 
     #[test]
@@ -215,8 +183,37 @@ mod tests {
         let mut game = game_with_probability(0);
         game.snake.grow();
 
-        assert_eq!(game.grid.width(), 8);
-        assert!(game.snake.occupies(&point(3, 3)));
+        assert_eq!(game.grid().width(), 8);
+        assert!(game.snake().occupies(&point(3, 3)));
         assert_eq!(game.score(), 1);
+    }
+
+    #[test]
+    fn apply_command_changes_snake_direction_for_next_tick() {
+        let mut game = game_with_probability(0);
+
+        game.apply_command(GameCommand::Move(Direction::Down));
+
+        assert!(matches!(game.tick(), GameResult::Running));
+        assert_eq!(game.snake().head(), point(3, 4));
+    }
+
+    #[test]
+    fn tick_returns_game_over_when_snake_hits_wall() {
+        let mut game = game_at(point(6, 3), 0);
+
+        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert_eq!(game.snake().head(), point(7, 3));
+    }
+
+    #[test]
+    fn tick_consumes_food_and_increases_score() {
+        let mut game = game_with_probability(0);
+        game.grid.change_cell(&point(4, 3), GridCell::Food);
+
+        assert!(matches!(game.tick(), GameResult::Running));
+        assert_eq!(game.score(), 1);
+        assert_eq!(game.grid().cell(&point(4, 3)), &GridCell::Empty);
+        assert_eq!(game.snake().head(), point(4, 3));
     }
 }

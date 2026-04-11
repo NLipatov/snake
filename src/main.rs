@@ -1,3 +1,4 @@
+use snake::cli::Cli;
 use snake::game::Game;
 use snake::grid::{Grid, Point};
 use snake::grid_geometry::GridGeometry;
@@ -12,8 +13,9 @@ fn main() {
         Ok(snake) => snake,
         Err(err) => panic!("{}", err),
     };
-    let mut game = Game::new(Terminal::default(), grid, snake, Renderer::new(), 4);
-    game.start();
+    let game = Game::new(grid, snake, 4);
+    let mut cli = Cli::new(game, Terminal::default(), Renderer::default());
+    let score = cli.run_loop();
     println!("Game over!");
-    println!("You've scored: {}", game.score());
+    println!("You've scored: {}", score);
 }

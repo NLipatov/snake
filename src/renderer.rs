@@ -2,15 +2,10 @@ use crate::grid::{Grid, GridCell, Point};
 use crate::snake::Snake;
 use std::io::{Write, stdout};
 
+#[derive(Default)]
 pub struct Renderer {
     work_frame: Option<Frame>,
     displayed_frame: Option<Frame>,
-}
-
-impl Default for Renderer {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Renderer {
