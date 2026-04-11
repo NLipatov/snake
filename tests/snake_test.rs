@@ -1,6 +1,6 @@
-use snake::grid::Point;
-use snake::grid_geometry::GridGeometry;
-use snake::snake::{Direction, MoveResult, Snake};
+use snake::domain::grid::Point;
+use snake::domain::grid_geometry::GridGeometry;
+use snake::domain::snake::{Direction, MoveResult, Snake};
 
 fn point(x: i32, y: i32) -> Point {
     Point::new(x, y)
@@ -9,6 +9,15 @@ fn point(x: i32, y: i32) -> Point {
 fn snake_at(starting_point: Point) -> Snake {
     let geometry = GridGeometry::new(8, 8);
     Snake::new(starting_point, geometry).expect("snake should fit in test grid")
+}
+
+#[test]
+fn new_snake_rejects_starting_point_outside_grid() {
+    let geometry = GridGeometry::new(8, 8);
+
+    let result = Snake::new(point(8, 2), geometry);
+
+    assert!(result.is_err());
 }
 
 #[test]
@@ -241,4 +250,11 @@ fn snake_does_not_occupy_unoccupied_cell() {
     let snake = snake_at(point(2, 2));
 
     assert!(!snake.occupies(&point(2, 3)));
+}
+
+#[test]
+fn snake_is_not_empty_after_construction() {
+    let snake = snake_at(point(2, 2));
+
+    assert!(!snake.is_empty());
 }

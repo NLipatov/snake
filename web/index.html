@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>snake</title>
+    <link rel="icon" type="image/svg+xml" href="./snake-icon.svg">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="game-panel">
+        <header class="panel-top">
+          <div class="scoreboard">
+            <span class="score-label">Score</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="controls">
+            <button
+              id="pause-button"
+              class="icon-button"
+              type="button"
+              aria-label="Pause game"
+              aria-pressed="false"
+              title="Pause"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="6" y="4.5" width="4.5" height="15" rx="1.2" fill="currentColor"></rect>
+                <rect x="13.5" y="4.5" width="4.5" height="15" rx="1.2" fill="currentColor"></rect>
+              </svg>
+            </button>
+            <button id="restart-button" class="icon-button" type="button" aria-label="Restart game" title="Restart">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M19.25 11.75a7.25 7.25 0 1 1-2.2-5.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                ></path>
+                <path
+                  d="M19.25 5v5.15H14.1"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="canvas-frame">
+          <canvas id="board" aria-label="Snake board"></canvas>
+          <div id="overlay" class="overlay hidden" aria-live="polite"></div>
+        </div>
+
+        <section class="touch-controls" aria-label="Touch controls">
+          <div class="dpad">
+            <button class="dpad-button up" data-direction="up" type="button" aria-label="Move up">↑</button>
+            <button class="dpad-button left" data-direction="left" type="button" aria-label="Move left">←</button>
+            <div class="dpad-core" aria-hidden="true"></div>
+            <button class="dpad-button right" data-direction="right" type="button" aria-label="Move right">→</button>
+            <button class="dpad-button down" data-direction="down" type="button" aria-label="Move down">↓</button>
+          </div>
+        </section>
+
+        <footer class="panel-footer">
+          <span id="status">Use arrow keys to play.</span>
+          <span class="desktop-hint">Space pauses. Esc restarts.</span>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

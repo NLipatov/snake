@@ -1,7 +1,7 @@
-use crate::grid::Point;
-use crate::grid_geometry::GridGeometry;
-use crate::snake::Direction::{Down, Left, Right, Up};
-use crate::snake::MoveResult::{Moved, SelfCollision};
+use crate::domain::grid::Point;
+use crate::domain::grid_geometry::GridGeometry;
+use crate::domain::snake::Direction::{Down, Left, Right, Up};
+use crate::domain::snake::MoveResult::{Moved, SelfCollision};
 use std::collections::VecDeque;
 
 pub struct Snake {
@@ -12,7 +12,7 @@ pub struct Snake {
     grid_geometry: GridGeometry,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Down,

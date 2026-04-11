@@ -1,16 +1,11 @@
-use crate::grid::{Grid, GridCell, Point};
-use crate::snake::Snake;
+use crate::domain::grid::{Grid, GridCell, Point};
+use crate::domain::snake::Snake;
 use std::io::{Write, stdout};
 
+#[derive(Default)]
 pub struct Renderer {
     work_frame: Option<Frame>,
     displayed_frame: Option<Frame>,
-}
-
-impl Default for Renderer {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Renderer {
@@ -241,9 +236,9 @@ mod tests {
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
         RenderCell, Renderer,
     };
-    use crate::grid::{Grid, GridCell, Point};
-    use crate::grid_geometry::GridGeometry;
-    use crate::snake::Snake;
+    use crate::domain::grid::{Grid, GridCell, Point};
+    use crate::domain::grid_geometry::GridGeometry;
+    use crate::domain::snake::Snake;
 
     fn point(x: i32, y: i32) -> Point {
         Point::new(x, y)

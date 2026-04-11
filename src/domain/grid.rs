@@ -1,5 +1,5 @@
-use crate::grid::GridCell::{Empty, Food, Wall};
-use crate::grid_geometry::GridGeometry;
+use crate::domain::grid::GridCell::{Empty, Food, Wall};
+use crate::domain::grid_geometry::GridGeometry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum GridCell {
