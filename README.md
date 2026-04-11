@@ -5,6 +5,8 @@
 
 A small Snake game written by hand in Rust, with both terminal and browser frontends.
 
+Play in browser: https://snake.ethacore.com
+
 ## Run In Terminal ▶️
 
 ```bash
