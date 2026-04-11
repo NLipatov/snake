@@ -199,6 +199,17 @@ mod tests {
     }
 
     #[test]
+    fn apply_command_updates_direction_immediately() {
+        let mut game = game_with_probability(0);
+
+        game.apply_command(GameCommand::Move(Direction::Down));
+        game.apply_command(GameCommand::Move(Direction::Left));
+
+        assert!(matches!(game.tick(), GameResult::Running));
+        assert_eq!(game.snake().head(), point(2, 3));
+    }
+
+    #[test]
     fn tick_returns_game_over_when_snake_hits_wall() {
         let mut game = game_at(point(6, 3), 0);
 

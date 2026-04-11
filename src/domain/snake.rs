@@ -12,7 +12,7 @@ pub struct Snake {
     grid_geometry: GridGeometry,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Down,
