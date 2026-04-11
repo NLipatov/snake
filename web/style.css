@@ -526,6 +526,7 @@ canvas {
   .touch-controls {
     display: grid;
     gap: 14px;
+    justify-items: center;
   }
 
   .desktop-hint {
@@ -533,12 +534,64 @@ canvas {
   }
 
   .dpad {
-    grid-template-columns: repeat(3, minmax(80px, 88px));
-    grid-template-rows: repeat(3, minmax(80px, 88px));
+    --dpad-size: 196px;
+    --dpad-thickness: 56px;
+    --dpad-arm-size: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+
+    position: relative;
+    display: block;
+    width: var(--dpad-size);
+    height: var(--dpad-size);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .dpad-button {
-    font-size: 2rem;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.05rem;
+    line-height: 1;
+  }
+
+  .dpad-core {
+    display: none;
+  }
+
+  .dpad-button.up {
+    top: 0;
+    left: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    width: var(--dpad-thickness);
+    height: var(--dpad-arm-size);
+    border-radius: 18px 18px 8px 8px;
+  }
+
+  .dpad-button.left {
+    top: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    left: 0;
+    width: var(--dpad-arm-size);
+    height: var(--dpad-thickness);
+    border-radius: 18px 8px 8px 18px;
+  }
+
+  .dpad-button.right {
+    top: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    right: 0;
+    width: var(--dpad-arm-size);
+    height: var(--dpad-thickness);
+    border-radius: 8px 18px 18px 8px;
+  }
+
+  .dpad-button.down {
+    bottom: 0;
+    left: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    width: var(--dpad-thickness);
+    height: var(--dpad-arm-size);
+    border-radius: 8px 8px 18px 18px;
   }
 }
 
@@ -593,11 +646,11 @@ canvas {
   }
 
   .dpad {
-    grid-template-columns: repeat(3, 68px);
-    grid-template-rows: repeat(3, 68px);
+    --dpad-size: 176px;
+    --dpad-thickness: 50px;
   }
 
   .dpad-button {
-    font-size: 1.75rem;
+    font-size: 1.85rem;
   }
 }
