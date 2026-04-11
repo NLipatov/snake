@@ -16,6 +16,7 @@ const scoreNode = document.getElementById("score");
 const statusNode = document.getElementById("status");
 const pauseButton = document.getElementById("pause-button");
 const restartButton = document.getElementById("restart-button");
+const touchControls = document.querySelector(".touch-controls");
 const dpadButtons = Array.from(document.querySelectorAll(".dpad-button"));
 
 const pauseIcon = `
@@ -32,22 +33,23 @@ let timerId;
 let restartPressTimer;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
+const touchControlsQuery = window.matchMedia("(max-width: 760px)");
 
 function isReady() {
   return game !== undefined;
 }
 
-function isTouchDevice() {
-  return coarsePointerQuery.matches;
+function usesTouchControls() {
+  return window.getComputedStyle(touchControls).display !== "none";
 }
 
 function idleStatusText() {
-  return isTouchDevice() ? "" : "Use arrow keys to play.";
+  return usesTouchControls() ? "" : "Use arrow keys to play.";
 }
 
 function gameOverOverlayMarkup() {
-  if (isTouchDevice()) {
-    return "Game over. Tap Restart.";
+  if (usesTouchControls()) {
+    return "Game over. Tap Restart or D-pad.";
   }
 
   return [
@@ -309,6 +311,12 @@ if (typeof coarsePointerQuery.addEventListener === "function") {
   coarsePointerQuery.addEventListener("change", handleInputModeChange);
 } else if (typeof coarsePointerQuery.addListener === "function") {
   coarsePointerQuery.addListener(handleInputModeChange);
+}
+
+if (typeof touchControlsQuery.addEventListener === "function") {
+  touchControlsQuery.addEventListener("change", handleInputModeChange);
+} else if (typeof touchControlsQuery.addListener === "function") {
+  touchControlsQuery.addListener(handleInputModeChange);
 }
 
 main().catch((error) => {
