@@ -31,7 +31,7 @@ let paused = false;
 let gameOver = false;
 let timerId;
 let restartPressTimer;
-let directionQueue = [];
+let pendingDirection;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
 const touchControlsQuery = window.matchMedia("(max-width: 760px)");
@@ -103,7 +103,7 @@ function createGame() {
   game = new WebGame();
   paused = false;
   gameOver = false;
-  directionQueue = [];
+  pendingDirection = undefined;
 
   canvas.width = game.width() * CELL_SIZE;
   canvas.height = game.height() * CELL_SIZE;
@@ -161,9 +161,9 @@ function step() {
     return;
   }
 
-  const nextDirection = directionQueue.shift();
-  if (nextDirection !== undefined) {
-    applyDirection(nextDirection);
+  if (pendingDirection !== undefined) {
+    applyDirection(pendingDirection);
+    pendingDirection = undefined;
   }
 
   const alive = game.tick();
@@ -216,11 +216,11 @@ function queueDirection(direction) {
     return;
   }
 
-  if (directionQueue[directionQueue.length - 1] === direction) {
+  if (pendingDirection !== undefined) {
     return;
   }
 
-  directionQueue.push(direction);
+  pendingDirection = direction;
 }
 
 function handleDirection(code) {
