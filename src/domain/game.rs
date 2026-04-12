@@ -239,6 +239,30 @@ mod tests {
     }
 
     #[test]
+    fn game_exposes_snake_and_food_accessors() {
+        let mut game = game_with_probability(0);
+        game.snake.grow();
+        game.spawn_food_at(&point(4, 4));
+
+        let snake_points: Vec<Point> = game.snake_points().copied().collect();
+        let food_points: Vec<Point> = game.food_points().copied().collect();
+
+        assert_eq!(snake_points, vec![point(3, 3)]);
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_point_at(0), Some(point(3, 3)));
+        assert_eq!(game.snake_point_at(1), None);
+        assert!(game.snake_at(&point(3, 3)));
+        assert!(!game.snake_at(&point(4, 4)));
+
+        assert_eq!(food_points, vec![point(4, 4)]);
+        assert_eq!(game.food_len(), 1);
+        assert_eq!(game.food_point_at(0), Some(point(4, 4)));
+        assert_eq!(game.food_point_at(1), None);
+        assert!(game.food_at(&point(4, 4)));
+        assert!(!game.food_at(&point(3, 3)));
+    }
+
+    #[test]
     fn apply_command_changes_snake_direction_for_next_tick() {
         let mut game = game_with_probability(0);
 

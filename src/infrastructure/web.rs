@@ -179,4 +179,36 @@ mod tests {
         assert!(!game.tick());
         assert_eq!((game.snake_x(0), game.snake_y(0)), (4, 1));
     }
+
+    #[test]
+    #[should_panic(expected = "snake point index should be in bounds")]
+    fn snake_x_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.snake_x(1);
+    }
+
+    #[test]
+    #[should_panic(expected = "snake point index should be in bounds")]
+    fn snake_y_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.snake_y(1);
+    }
+
+    #[test]
+    #[should_panic(expected = "food point index should be in bounds")]
+    fn food_x_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.food_x(0);
+    }
+
+    #[test]
+    #[should_panic(expected = "food point index should be in bounds")]
+    fn food_y_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.food_y(0);
+    }
 }

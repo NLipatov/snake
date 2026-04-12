@@ -258,3 +258,21 @@ fn snake_is_not_empty_after_construction() {
 
     assert!(!snake.is_empty());
 }
+
+#[test]
+fn occupied_accessors_expose_current_body_points() {
+    let mut snake = snake_at(point(2, 2));
+    snake.grow();
+    snake.move_snake();
+    snake.grow();
+    snake.move_snake();
+
+    let occupied_points: Vec<Point> = snake.occupied_points().copied().collect();
+
+    assert_eq!(occupied_points, vec![point(4, 2), point(3, 2), point(2, 2)]);
+    assert_eq!(snake.occupied_len(), 3);
+    assert_eq!(snake.occupied_point_at(0), Some(point(4, 2)));
+    assert_eq!(snake.occupied_point_at(1), Some(point(3, 2)));
+    assert_eq!(snake.occupied_point_at(2), Some(point(2, 2)));
+    assert_eq!(snake.occupied_point_at(3), None);
+}
