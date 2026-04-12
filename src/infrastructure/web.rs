@@ -82,13 +82,15 @@ impl WebGame {
         if self.game.snake().occupies(&point) {
             return 3;
         }
+        if self.game.food_at(&point) {
+            return 2;
+        }
         if !self.game.grid().in_bounds(&point) {
             return u8::MAX;
         }
         match self.game.grid().cell(&point) {
             GridCell::Empty => 0,
             GridCell::Wall => 1,
-            GridCell::Food => 2,
         }
     }
 
@@ -104,21 +106,6 @@ impl WebGame {
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_HEIGHT, DEFAULT_START_X, DEFAULT_START_Y, DEFAULT_WIDTH, WebGame};
-    use crate::domain::game::Game;
-    use crate::domain::grid::{Grid, GridCell, Point};
-    use crate::domain::grid_geometry::GridGeometry;
-    use crate::domain::snake::Snake;
-
-    fn web_game_with_food(food_at: Point) -> WebGame {
-        let geometry = GridGeometry::new(8, 8);
-        let mut grid = Grid::new(geometry);
-        grid.change_cell(&food_at, GridCell::Food);
-        let snake = Snake::new(Point::new(3, 3), geometry).expect("snake should fit in grid");
-
-        WebGame {
-            game: Game::new(grid, snake, 0),
-        }
-    }
 
     #[test]
     fn new_uses_default_configuration() {
@@ -133,11 +120,10 @@ mod tests {
     }
 
     #[test]
-    fn cell_at_reports_snake_food_wall_empty_and_out_of_bounds() {
-        let game = web_game_with_food(Point::new(4, 4));
+    fn cell_at_reports_snake_wall_empty_and_out_of_bounds() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
 
         assert_eq!(game.cell_at(3, 3), 3);
-        assert_eq!(game.cell_at(4, 4), 2);
         assert_eq!(game.cell_at(0, 0), 1);
         assert_eq!(game.cell_at(4, 3), 0);
         assert_eq!(game.cell_at(-1, 0), u8::MAX);
@@ -181,13 +167,5 @@ mod tests {
 
         assert!(!game.tick());
         assert_eq!((game.head_x(), game.head_y()), (4, 1));
-    }
-
-    #[test]
-    fn score_increases_after_eating_food() {
-        let mut game = web_game_with_food(Point::new(4, 3));
-
-        assert!(game.tick());
-        assert_eq!(game.score(), 1);
     }
 }

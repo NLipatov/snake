@@ -1,11 +1,10 @@
-use crate::domain::grid::GridCell::{Empty, Food, Wall};
+use crate::domain::grid::GridCell::{Empty, Wall};
 use crate::domain::grid_geometry::GridGeometry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum GridCell {
     Empty,
     Wall,
-    Food,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -62,13 +61,6 @@ impl Grid {
     pub fn change_cell(&mut self, at: &Point, cell: GridCell) {
         if let Some(idx) = self.geometry.index(at) {
             self.cells[idx] = cell;
-        }
-    }
-    pub fn on_food_consumed(&mut self, at: &Point) {
-        if let Some(idx) = self.geometry.index(at)
-            && self.cells[idx] == Food
-        {
-            self.cells[idx] = Empty;
         }
     }
     pub fn in_bounds(&self, point: &Point) -> bool {

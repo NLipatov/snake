@@ -1,5 +1,5 @@
+use crate::domain::game::Game;
 use crate::domain::grid::{Grid, GridCell, Point};
-use crate::domain::snake::Snake;
 use std::io::{Write, stdout};
 
 #[derive(Default)]
@@ -18,17 +18,17 @@ impl Renderer {
     fn clear<W: Write>(&self, out: &mut W) {
         write!(out, "\x1B[2J").expect("could not clear screen");
     }
-    pub fn render(&mut self, grid: &Grid, snake: &Snake, score: usize) {
+    pub fn render(&mut self, game: &Game, score: usize) {
         let mut out = stdout();
-        self.render_to(&mut out, grid, snake, score);
+        self.render_to(&mut out, game, score);
     }
-    fn render_to<W: Write>(&mut self, out: &mut W, grid: &Grid, snake: &Snake, score: usize) {
-        if self.geometry_changed(grid) || self.displayed_frame.is_none() {
+    fn render_to<W: Write>(&mut self, out: &mut W, game: &Game, score: usize) {
+        if self.geometry_changed(game.grid()) || self.displayed_frame.is_none() {
             self.clear(out)
         }
         self.render_header(out, score);
-        self.render_grid(out, snake, grid);
-        let footer_row = 2 + ((grid.height() + 1) / 2) as usize;
+        self.render_grid(out, game);
+        let footer_row = 2 + ((game.grid().height() + 1) / 2) as usize;
         self.move_cursor(out, footer_row, 1);
         out.flush().expect("could not flush stdout");
     }
@@ -37,7 +37,8 @@ impl Renderer {
         write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
             .expect("could not write header");
     }
-    fn render_grid<W: Write>(&mut self, out: &mut W, snake: &Snake, grid: &Grid) {
+    fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
+        let grid = game.grid();
         let mut frame = self.prepare_work_frame(grid);
         let mut y = 0;
         while y < grid.height() {
@@ -45,9 +46,9 @@ impl Renderer {
             for x in 0..grid.width() {
                 let top_point = Point::new(x, y);
                 let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(grid, snake, &top_point);
+                let top = RenderCell::new(grid, game, &top_point);
                 let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, snake, &bottom_point)
+                    RenderCell::new(grid, game, &bottom_point)
                 } else {
                     RenderCell::Empty
                 };
@@ -201,14 +202,16 @@ enum RenderCell {
 }
 
 impl RenderCell {
-    fn new(grid: &Grid, snake: &Snake, at: &Point) -> RenderCell {
-        if snake.occupies(at) {
+    fn new(grid: &Grid, game: &Game, at: &Point) -> RenderCell {
+        if game.snake_at(at) {
             return RenderCell::Snake;
+        }
+        if game.food_at(at) {
+            return RenderCell::Food;
         }
         match grid.cell(at) {
             GridCell::Wall => RenderCell::Wall,
-            GridCell::Food => RenderCell::Food,
-            _ => RenderCell::Empty,
+            GridCell::Empty => RenderCell::Empty,
         }
     }
     fn to_color(&self) -> Option<Color> {
@@ -236,7 +239,8 @@ mod tests {
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
         RenderCell, Renderer,
     };
-    use crate::domain::grid::{Grid, GridCell, Point};
+    use crate::domain::game::Game;
+    use crate::domain::grid::{Grid, Point};
     use crate::domain::grid_geometry::GridGeometry;
     use crate::domain::snake::Snake;
 
@@ -244,15 +248,24 @@ mod tests {
         Point::new(x, y)
     }
 
+    fn game_at(start: Point) -> Game {
+        game_with_geometry(5, 5, start)
+    }
+
+    fn game_with_geometry(width: i32, height: i32, start: Point) -> Game {
+        let geometry = GridGeometry::new(width, height);
+        let grid = Grid::new(geometry);
+        let snake = Snake::new(start, geometry).expect("snake should fit in grid");
+        Game::new(grid, snake, 0)
+    }
+
     #[test]
     fn render_accepts_grid_snake_and_score() {
         let mut renderer = Renderer::new();
-        let geometry = GridGeometry::new(5, 5);
-        let grid = Grid::new(geometry);
-        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let game = game_at(Point::new(2, 2));
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &grid, &snake, 7);
+        renderer.render_to(&mut out, &game, 7);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
@@ -276,14 +289,10 @@ mod tests {
     #[test]
     fn render_grid_writes_mixed_cells_with_cursor_moves() {
         let mut renderer = Renderer::new();
-        let geometry = GridGeometry::new(5, 5);
-        let mut grid = Grid::new(geometry);
-        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
-        grid.change_cell(&point(2, 3), GridCell::Food);
-        grid.change_cell(&point(3, 3), GridCell::Food);
+        let game = game_with_geometry(5, 6, Point::new(2, 2));
         let mut out = Vec::new();
 
-        renderer.render_grid(&mut out, &snake, &grid);
+        renderer.render_grid(&mut out, &game);
 
         let output = String::from_utf8(out).expect("grid should be utf-8");
 
@@ -299,13 +308,10 @@ mod tests {
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
         let mut renderer = Renderer::new();
-        let geometry = GridGeometry::new(5, 5);
-        let mut grid = Grid::new(geometry);
-        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
-        grid.change_cell(&point(2, 3), GridCell::Food);
+        let game = game_at(Point::new(2, 2));
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &grid, &snake, 1);
+        renderer.render_to(&mut out, &game, 1);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
@@ -320,14 +326,12 @@ mod tests {
     #[test]
     fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
         let mut renderer = Renderer::new();
-        let geometry = GridGeometry::new(5, 5);
-        let grid = Grid::new(geometry);
-        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+        let game = game_at(Point::new(2, 2));
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &grid, &snake, 1);
-        renderer.render_to(&mut second_out, &grid, &snake, 1);
+        renderer.render_to(&mut first_out, &game, 1);
+        renderer.render_to(&mut second_out, &game, 1);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -341,16 +345,13 @@ mod tests {
     #[test]
     fn second_render_with_changed_state_updates_only_changed_cells() {
         let mut renderer = Renderer::new();
-        let geometry = GridGeometry::new(5, 5);
-        let grid = Grid::new(geometry);
-        let first_snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
-        let second_snake =
-            Snake::new(Point::new(3, 2), geometry).expect("snake should fit in grid");
+        let first_game = game_at(Point::new(2, 2));
+        let second_game = game_at(Point::new(3, 2));
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &grid, &first_snake, 0);
-        renderer.render_to(&mut second_out, &grid, &second_snake, 0);
+        renderer.render_to(&mut first_out, &first_game, 0);
+        renderer.render_to(&mut second_out, &second_game, 0);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -364,35 +365,20 @@ mod tests {
     }
 
     #[test]
-    fn render_cell_prefers_snake_over_grid_contents() {
-        let geometry = GridGeometry::new(5, 5);
-        let mut grid = Grid::new(geometry);
-        grid.change_cell(&point(2, 2), GridCell::Food);
-        let snake = Snake::new(Point::new(2, 2), geometry).expect("snake should fit in grid");
+    fn render_cell_reads_snake_wall_and_empty_from_game_and_grid() {
+        let game = game_at(Point::new(1, 1));
+        let grid = game.grid();
 
         assert!(matches!(
-            RenderCell::new(&grid, &snake, &point(2, 2)),
+            RenderCell::new(grid, &game, &point(1, 1)),
             RenderCell::Snake
         ));
-    }
-
-    #[test]
-    fn render_cell_reads_food_wall_and_empty_from_grid() {
-        let geometry = GridGeometry::new(5, 5);
-        let mut grid = Grid::new(geometry);
-        let snake = Snake::new(Point::new(1, 1), geometry).expect("snake should fit in grid");
-        grid.change_cell(&point(2, 2), GridCell::Food);
-
         assert!(matches!(
-            RenderCell::new(&grid, &snake, &point(2, 2)),
-            RenderCell::Food
-        ));
-        assert!(matches!(
-            RenderCell::new(&grid, &snake, &point(0, 0)),
+            RenderCell::new(grid, &game, &point(0, 0)),
             RenderCell::Wall
         ));
         assert!(matches!(
-            RenderCell::new(&grid, &snake, &point(3, 3)),
+            RenderCell::new(grid, &game, &point(3, 3)),
             RenderCell::Empty
         ));
     }

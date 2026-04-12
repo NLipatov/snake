@@ -50,15 +50,15 @@ fn cell_panics_for_points_outside_grid() {
 fn change_cell_updates_cell_value() {
     let mut grid = grid(5, 5);
 
-    grid.change_cell(&point(2, 2), GridCell::Food);
+    grid.change_cell(&point(2, 2), GridCell::Wall);
 
-    assert_eq!(grid.cell(&point(2, 2)), &GridCell::Food);
+    assert_eq!(grid.cell(&point(2, 2)), &GridCell::Wall);
 }
 
 #[test]
 fn change_cell_can_overwrite_existing_value() {
     let mut grid = grid(5, 5);
-    grid.change_cell(&point(2, 2), GridCell::Food);
+    grid.change_cell(&point(2, 2), GridCell::Wall);
 
     grid.change_cell(&point(2, 2), GridCell::Empty);
 
@@ -69,41 +69,10 @@ fn change_cell_can_overwrite_existing_value() {
 fn change_cell_ignores_points_outside_grid() {
     let mut grid = grid(5, 5);
 
-    grid.change_cell(&point(5, 5), GridCell::Food);
+    grid.change_cell(&point(5, 5), GridCell::Wall);
 
     assert!(!grid.in_bounds(&point(5, 5)));
     assert_eq!(grid.cell(&point(2, 2)), &GridCell::Empty);
-}
-
-#[test]
-fn on_food_consumed_clears_food_cell() {
-    let mut grid = grid(5, 5);
-    grid.change_cell(&point(2, 2), GridCell::Food);
-
-    grid.on_food_consumed(&point(2, 2));
-
-    assert_eq!(grid.cell(&point(2, 2)), &GridCell::Empty);
-}
-
-#[test]
-fn on_food_consumed_leaves_non_food_cell_unchanged() {
-    let mut grid = grid(5, 5);
-
-    grid.on_food_consumed(&point(2, 2));
-
-    assert_eq!(grid.cell(&point(2, 2)), &GridCell::Empty);
-    assert_eq!(grid.cell(&point(0, 0)), &GridCell::Wall);
-}
-
-#[test]
-fn on_food_consumed_ignores_points_outside_grid() {
-    let mut grid = grid(5, 5);
-
-    grid.on_food_consumed(&point(-1, 0));
-    grid.on_food_consumed(&point(5, 5));
-
-    assert_eq!(grid.cell(&point(2, 2)), &GridCell::Empty);
-    assert_eq!(grid.cell(&point(0, 0)), &GridCell::Wall);
 }
 
 #[test]
