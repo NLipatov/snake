@@ -2,7 +2,7 @@ use crate::domain::grid::Point;
 use crate::domain::grid_geometry::GridGeometry;
 use crate::domain::snake::Direction::{Down, Left, Right, Up};
 use crate::domain::snake::MoveResult::{Moved, SelfCollision};
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 pub struct Snake {
     body: VecDeque<Point>,

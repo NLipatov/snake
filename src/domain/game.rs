@@ -52,9 +52,8 @@ impl Game {
         if !self.grid.in_bounds(&head) {
             return GameOver;
         }
-        match self.grid.cell(&head) {
-            Wall => return GameOver,
-            _ => (),
+        if self.grid.cell(&head) == &Wall {
+            return GameOver;
         }
         if self.food_points.contains(&head) {
             self.snake.grow();
@@ -82,7 +81,7 @@ impl Game {
             && matches!(self.grid.cell(point), Empty)
             && !self.snake.occupies(point)
         {
-            self.food_points.insert(point.clone());
+            self.food_points.insert(*point);
         }
     }
     pub fn snake_points(&self) -> impl Iterator<Item = &Point> + '_ {
