@@ -31,6 +31,7 @@ let paused = false;
 let gameOver = false;
 let timerId;
 let restartPressTimer;
+let directionQueue = [];
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
 const touchControlsQuery = window.matchMedia("(max-width: 760px)");
@@ -102,6 +103,7 @@ function createGame() {
   game = new WebGame();
   paused = false;
   gameOver = false;
+  directionQueue = [];
 
   canvas.width = game.width() * CELL_SIZE;
   canvas.height = game.height() * CELL_SIZE;
@@ -159,6 +161,11 @@ function step() {
     return;
   }
 
+  const nextDirection = directionQueue.shift();
+  if (nextDirection !== undefined) {
+    applyDirection(nextDirection);
+  }
+
   const alive = game.tick();
   scoreNode.textContent = String(game.score());
   render();
@@ -189,28 +196,7 @@ function togglePause() {
   setOverlay(paused ? "Paused" : "");
 }
 
-function handleDirection(code) {
-  if (!isReady() || gameOver) {
-    return;
-  }
-  if (code === "ArrowUp") {
-    game.move_up();
-  } else if (code === "ArrowDown") {
-    game.move_down();
-  } else if (code === "ArrowLeft") {
-    game.move_left();
-  } else if (code === "ArrowRight") {
-    game.move_right();
-  } else {
-    return;
-  }
-  render();
-}
-
-function handleDirectionName(direction) {
-  if (!isReady() || gameOver) {
-    return;
-  }
+function applyDirection(direction) {
   if (direction === "up") {
     game.move_up();
   } else if (direction === "down") {
@@ -219,10 +205,34 @@ function handleDirectionName(direction) {
     game.move_left();
   } else if (direction === "right") {
     game.move_right();
-  } else {
+  }
+}
+
+function queueDirection(direction) {
+  if (!isReady() || paused || gameOver) {
     return;
   }
-  render();
+  if (!["up", "down", "left", "right"].includes(direction)) {
+    return;
+  }
+
+  if (directionQueue[directionQueue.length - 1] === direction) {
+    return;
+  }
+
+  directionQueue.push(direction);
+}
+
+function handleDirection(code) {
+  if (code === "ArrowUp") {
+    queueDirection("up");
+  } else if (code === "ArrowDown") {
+    queueDirection("down");
+  } else if (code === "ArrowLeft") {
+    queueDirection("left");
+  } else if (code === "ArrowRight") {
+    queueDirection("right");
+  }
 }
 
 function pressDpadButton(button) {
@@ -231,7 +241,7 @@ function pressDpadButton(button) {
     restart();
     return;
   }
-  handleDirectionName(button.dataset.direction);
+  queueDirection(button.dataset.direction);
 }
 
 async function main() {
@@ -244,6 +254,10 @@ window.addEventListener("keydown", (event) => {
   const navigationalKey = event.code.startsWith("Arrow") || ["Space", "Escape"].includes(event.code);
   if (navigationalKey) {
     event.preventDefault();
+  }
+
+  if (event.repeat) {
+    return;
   }
 
   if (event.code === "Space") {
