@@ -122,4 +122,10 @@ impl Snake {
     pub fn occupied_points(&self) -> impl Iterator<Item = &Point> + '_ {
         self.body.iter()
     }
+    pub fn occupied_len(&self) -> usize {
+        self.body.len()
+    }
+    pub fn occupied_point_at(&self, index: usize) -> Option<Point> {
+        self.body.get(index).copied()
+    }
 }

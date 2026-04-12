@@ -77,18 +77,40 @@ impl WebGame {
         self.game.grid().height()
     }
 
-    pub fn snake_points_flat(&self) -> Vec<i32> {
-        self.game
-            .snake_points()
-            .flat_map(|point| [point.x, point.y])
-            .collect()
+    pub fn snake_len(&self) -> u32 {
+        self.game.snake_len() as u32
     }
 
-    pub fn food_points_flat(&self) -> Vec<i32> {
+    pub fn snake_x(&self, index: u32) -> i32 {
         self.game
-            .food_points()
-            .flat_map(|point| [point.x, point.y])
-            .collect()
+            .snake_point_at(index as usize)
+            .expect("snake point index should be in bounds")
+            .x
+    }
+
+    pub fn snake_y(&self, index: u32) -> i32 {
+        self.game
+            .snake_point_at(index as usize)
+            .expect("snake point index should be in bounds")
+            .y
+    }
+
+    pub fn food_len(&self) -> u32 {
+        self.game.food_len() as u32
+    }
+
+    pub fn food_x(&self, index: u32) -> i32 {
+        self.game
+            .food_point_at(index as usize)
+            .expect("food point index should be in bounds")
+            .x
+    }
+
+    pub fn food_y(&self, index: u32) -> i32 {
+        self.game
+            .food_point_at(index as usize)
+            .expect("food point index should be in bounds")
+            .y
     }
 }
 
@@ -103,10 +125,9 @@ mod tests {
         assert_eq!(game.width(), DEFAULT_WIDTH);
         assert_eq!(game.height(), DEFAULT_HEIGHT);
         assert_eq!(game.score(), 0);
-        assert_eq!(
-            game.snake_points_flat(),
-            vec![DEFAULT_START_X, DEFAULT_START_Y]
-        );
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_x(0), DEFAULT_START_X);
+        assert_eq!(game.snake_y(0), DEFAULT_START_Y);
     }
 
     #[test]
@@ -117,35 +138,37 @@ mod tests {
         move_up.move_left();
         move_up.move_up();
         assert!(move_up.tick());
-        assert_eq!(move_up.snake_points_flat(), vec![3, 2]);
+        assert_eq!((move_up.snake_x(0), move_up.snake_y(0)), (3, 2));
 
         let mut move_down =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_down.move_down();
         assert!(move_down.tick());
-        assert_eq!(move_down.snake_points_flat(), vec![3, 4]);
+        assert_eq!((move_down.snake_x(0), move_down.snake_y(0)), (3, 4));
 
         let mut move_left =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_left.move_down();
         move_left.move_left();
         assert!(move_left.tick());
-        assert_eq!(move_left.snake_points_flat(), vec![2, 3]);
+        assert_eq!((move_left.snake_x(0), move_left.snake_y(0)), (2, 3));
 
         let mut move_right =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_right.move_down();
         move_right.move_right();
         assert!(move_right.tick());
-        assert_eq!(move_right.snake_points_flat(), vec![4, 3]);
+        assert_eq!((move_right.snake_x(0), move_right.snake_y(0)), (4, 3));
     }
 
     #[test]
-    fn flat_point_accessors_expose_dynamic_entities() {
+    fn indexed_accessors_expose_dynamic_entities() {
         let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
 
-        assert_eq!(game.snake_points_flat(), vec![3, 3]);
-        assert!(game.food_points_flat().is_empty());
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_x(0), 3);
+        assert_eq!(game.snake_y(0), 3);
+        assert_eq!(game.food_len(), 0);
     }
 
     #[test]
@@ -154,6 +177,6 @@ mod tests {
             WebGame::with_config(4, 4, 3, 1, 0).expect("web game should initialize in bounds");
 
         assert!(!game.tick());
-        assert_eq!(game.snake_points_flat(), vec![4, 1]);
+        assert_eq!((game.snake_x(0), game.snake_y(0)), (4, 1));
     }
 }

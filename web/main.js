@@ -68,6 +68,10 @@ function gameOverOverlayMarkup() {
   ].join("");
 }
 
+function shouldRunLoop() {
+  return isReady() && !paused && !gameOver && !document.hidden;
+}
+
 function themeColor(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -147,18 +151,18 @@ function renderStaticLayer() {
 function render() {
   context.drawImage(staticCanvas, 0, 0);
 
-  const foodPoints = game.food_points_flat();
-  for (let i = 0; i < foodPoints.length; i += 2) {
-    drawCell(foodPoints[i], foodPoints[i + 1], currentPalette.food, ENTITY_INSET);
+  const foodCount = game.food_len();
+  for (let i = 0; i < foodCount; i += 1) {
+    drawCell(game.food_x(i), game.food_y(i), currentPalette.food, ENTITY_INSET);
   }
 
-  const snakePoints = game.snake_points_flat();
-  for (let i = 0; i < snakePoints.length; i += 2) {
-    drawCell(snakePoints[i], snakePoints[i + 1], currentPalette.snake, ENTITY_INSET);
+  const snakeCount = game.snake_len();
+  for (let i = 0; i < snakeCount; i += 1) {
+    drawCell(game.snake_x(i), game.snake_y(i), currentPalette.snake, ENTITY_INSET);
   }
 
-  if (snakePoints.length >= 2) {
-    drawCell(snakePoints[0], snakePoints[1], currentPalette.snakeHead, ENTITY_INSET);
+  if (snakeCount > 0) {
+    drawCell(game.snake_x(0), game.snake_y(0), currentPalette.snakeHead, ENTITY_INSET);
   }
 }
 
@@ -182,10 +186,26 @@ function createGame() {
   setOverlay("");
   renderStaticLayer();
   render();
+  startLoop();
+}
+
+function stopLoop() {
+  if (timerId !== undefined) {
+    window.clearInterval(timerId);
+    timerId = undefined;
+  }
+}
+
+function startLoop() {
+  if (!shouldRunLoop() || timerId !== undefined) {
+    return;
+  }
+  timerId = window.setInterval(step, TICK_MS);
 }
 
 function step() {
-  if (paused || gameOver) {
+  if (!shouldRunLoop()) {
+    stopLoop();
     return;
   }
 
@@ -203,6 +223,7 @@ function step() {
     statusNode.textContent = "Game over.";
     setPauseButtonState(false);
     setOverlay(gameOverOverlayMarkup());
+    stopLoop();
   }
 }
 
@@ -211,6 +232,7 @@ function restart() {
     return;
   }
   pulseRestartButton();
+  stopLoop();
   createGame();
 }
 
@@ -219,6 +241,11 @@ function togglePause() {
     return;
   }
   paused = !paused;
+  if (paused) {
+    stopLoop();
+  } else {
+    startLoop();
+  }
   setPauseButtonState(paused);
   statusNode.textContent = paused ? "Paused." : idleStatusText();
   setOverlay(paused ? "Paused" : "");
@@ -275,7 +302,6 @@ function pressDpadButton(button) {
 async function main() {
   await init();
   createGame();
-  timerId = window.setInterval(step, TICK_MS);
 }
 
 window.addEventListener("keydown", (event) => {
@@ -343,9 +369,7 @@ dpadButtons.forEach((button) => {
 });
 
 window.addEventListener("beforeunload", () => {
-  if (timerId !== undefined) {
-    window.clearInterval(timerId);
-  }
+  stopLoop();
 });
 
 const handleThemeChange = () => {
@@ -365,6 +389,14 @@ const handleInputModeChange = () => {
   render();
 };
 
+const handleVisibilityChange = () => {
+  if (shouldRunLoop()) {
+    startLoop();
+  } else {
+    stopLoop();
+  }
+};
+
 if (typeof themeQuery.addEventListener === "function") {
   themeQuery.addEventListener("change", handleThemeChange);
 } else if (typeof themeQuery.addListener === "function") {
@@ -382,6 +414,8 @@ if (typeof touchControlsQuery.addEventListener === "function") {
 } else if (typeof touchControlsQuery.addListener === "function") {
   touchControlsQuery.addListener(handleInputModeChange);
 }
+
+document.addEventListener("visibilitychange", handleVisibilityChange);
 
 main().catch((error) => {
   console.error(error);

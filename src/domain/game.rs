@@ -87,8 +87,20 @@ impl Game {
     pub fn snake_points(&self) -> impl Iterator<Item = &Point> + '_ {
         self.snake.occupied_points()
     }
+    pub fn snake_len(&self) -> usize {
+        self.snake.occupied_len()
+    }
+    pub fn snake_point_at(&self, index: usize) -> Option<Point> {
+        self.snake.occupied_point_at(index)
+    }
     pub fn food_points(&self) -> impl Iterator<Item = &Point> + '_ {
         self.food_points.iter()
+    }
+    pub fn food_len(&self) -> usize {
+        self.food_points.len()
+    }
+    pub fn food_point_at(&self, index: usize) -> Option<Point> {
+        self.food_points.iter().nth(index).copied()
     }
     pub fn food_at(&self, point: &Point) -> bool {
         self.food_points.contains(point)
