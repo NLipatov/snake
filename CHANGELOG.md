@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/NLipatov/snake/compare/v0.1.4...v0.1.5) - 2026-04-12
+
+### Added
+
+- add web app icons and manifest
+
+### Other
+
+- expand coverage for game, web, and snake accessors
+- refresh readme positioning and controls
+- reduce web render overhead and idle wakeups
+- fix clippy warnings in game and snake
+- render web board from cached background and dynamic
+- move food state out of grid
+
 ## [0.1.4](https://github.com/NLipatov/snake/compare/v0.1.3...v0.1.4) - 2026-04-12
 
 ### Added
