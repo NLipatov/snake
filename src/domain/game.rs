@@ -1,8 +1,9 @@
 use crate::domain::game::GameResult::{GameOver, Running};
-use crate::domain::grid::GridCell::{Empty, Food, Wall};
+use crate::domain::grid::GridCell::{Empty, Wall};
 use crate::domain::grid::{Grid, Point};
 use crate::domain::snake::{Direction, MoveResult, Snake};
 use rand::{RngExt, rngs};
+use std::collections::HashSet;
 
 pub enum GameCommand {
     Move(Direction),
@@ -18,6 +19,7 @@ pub struct Game {
     snake: Snake,
     rng: rngs::ThreadRng,
     food_spawn_attempt_probability: i32,
+    food_points: HashSet<Point>,
 }
 
 impl Game {
@@ -32,6 +34,7 @@ impl Game {
             snake,
             rng,
             food_spawn_attempt_probability,
+            food_points: HashSet::new(),
         }
     }
     pub fn apply_command(&mut self, command: GameCommand) {
@@ -49,13 +52,12 @@ impl Game {
         if !self.grid.in_bounds(&head) {
             return GameOver;
         }
-        match self.grid.cell(&head) {
-            Wall => return GameOver,
-            Food => {
-                self.snake.grow();
-                self.grid.on_food_consumed(&head)
-            }
-            _ => (),
+        if self.grid.cell(&head) == &Wall {
+            return GameOver;
+        }
+        if self.food_points.contains(&head) {
+            self.snake.grow();
+            self.food_points.remove(&head);
         }
         if self.should_attempt_food_spawn() {
             self.attempt_food_spawn();
@@ -79,8 +81,32 @@ impl Game {
             && matches!(self.grid.cell(point), Empty)
             && !self.snake.occupies(point)
         {
-            self.grid.change_cell(point, Food);
+            self.food_points.insert(*point);
         }
+    }
+    pub fn snake_points(&self) -> impl Iterator<Item = &Point> + '_ {
+        self.snake.occupied_points()
+    }
+    pub fn snake_len(&self) -> usize {
+        self.snake.occupied_len()
+    }
+    pub fn snake_point_at(&self, index: usize) -> Option<Point> {
+        self.snake.occupied_point_at(index)
+    }
+    pub fn food_points(&self) -> impl Iterator<Item = &Point> + '_ {
+        self.food_points.iter()
+    }
+    pub fn food_len(&self) -> usize {
+        self.food_points.len()
+    }
+    pub fn food_point_at(&self, index: usize) -> Option<Point> {
+        self.food_points.iter().nth(index).copied()
+    }
+    pub fn food_at(&self, point: &Point) -> bool {
+        self.food_points.contains(point)
+    }
+    pub fn snake_at(&self, point: &Point) -> bool {
+        self.snake.occupies(point)
     }
     pub fn score(&self) -> usize {
         self.snake.logical_len().saturating_sub(1)
@@ -162,7 +188,7 @@ mod tests {
 
         game.spawn_food_at(&point(4, 4));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
+        assert!(game.food_points().any(|p| *p == point(4, 4)));
     }
 
     #[test]
@@ -171,18 +197,18 @@ mod tests {
 
         game.spawn_food_at(&point(3, 3));
 
-        assert_eq!(game.grid.cell(&point(3, 3)), &GridCell::Empty);
+        assert!(!game.food_points().any(|p| *p == point(3, 3)));
     }
 
     #[test]
     fn spawn_food_at_does_not_overwrite_existing_food_or_wall() {
         let mut game = game_with_probability(0);
-        game.grid.change_cell(&point(4, 4), GridCell::Food);
+        game.spawn_food_at(&point(4, 4));
 
         game.spawn_food_at(&point(4, 4));
         game.spawn_food_at(&point(0, 0));
 
-        assert_eq!(game.grid.cell(&point(4, 4)), &GridCell::Food);
+        assert_eq!(game.food_points().filter(|p| **p == point(4, 4)).count(), 1);
         assert_eq!(game.grid.cell(&point(0, 0)), &GridCell::Wall);
     }
 
@@ -210,6 +236,30 @@ mod tests {
         assert_eq!(game.grid().width(), 8);
         assert!(game.snake().occupies(&point(3, 3)));
         assert_eq!(game.score(), 1);
+    }
+
+    #[test]
+    fn game_exposes_snake_and_food_accessors() {
+        let mut game = game_with_probability(0);
+        game.snake.grow();
+        game.spawn_food_at(&point(4, 4));
+
+        let snake_points: Vec<Point> = game.snake_points().copied().collect();
+        let food_points: Vec<Point> = game.food_points().copied().collect();
+
+        assert_eq!(snake_points, vec![point(3, 3)]);
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_point_at(0), Some(point(3, 3)));
+        assert_eq!(game.snake_point_at(1), None);
+        assert!(game.snake_at(&point(3, 3)));
+        assert!(!game.snake_at(&point(4, 4)));
+
+        assert_eq!(food_points, vec![point(4, 4)]);
+        assert_eq!(game.food_len(), 1);
+        assert_eq!(game.food_point_at(0), Some(point(4, 4)));
+        assert_eq!(game.food_point_at(1), None);
+        assert!(game.food_at(&point(4, 4)));
+        assert!(!game.food_at(&point(3, 3)));
     }
 
     #[test]
@@ -252,11 +302,11 @@ mod tests {
     #[test]
     fn tick_consumes_food_and_increases_score() {
         let mut game = game_with_probability(0);
-        game.grid.change_cell(&point(4, 3), GridCell::Food);
+        game.spawn_food_at(&point(4, 3));
 
         assert!(matches!(game.tick(), GameResult::Running));
         assert_eq!(game.score(), 1);
-        assert_eq!(game.grid().cell(&point(4, 3)), &GridCell::Empty);
+        assert!(!game.food_points().any(|p| *p == point(4, 3)));
         assert_eq!(game.snake().head(), point(4, 3));
     }
 

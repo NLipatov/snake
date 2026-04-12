@@ -1,10 +1,6 @@
 import init, { WebGame } from "./pkg/snake.js";
 
 const CELL_SIZE = 18;
-const EMPTY = 0;
-const WALL = 1;
-const FOOD = 2;
-const SNAKE = 3;
 const TICK_MS = 115;
 const RESTART_PRESS_MS = 140;
 const ENTITY_INSET = 1.3;
@@ -18,6 +14,8 @@ const pauseButton = document.getElementById("pause-button");
 const restartButton = document.getElementById("restart-button");
 const touchControls = document.querySelector(".touch-controls");
 const dpadButtons = Array.from(document.querySelectorAll(".dpad-button"));
+const staticCanvas = document.createElement("canvas");
+const staticContext = staticCanvas.getContext("2d");
 
 const pauseIcon = `
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -32,6 +30,9 @@ let gameOver = false;
 let timerId;
 let restartPressTimer;
 let pendingDirection;
+let boardWidth = 0;
+let boardHeight = 0;
+let currentPalette;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
 const touchControlsQuery = window.matchMedia("(max-width: 760px)");
@@ -67,6 +68,10 @@ function gameOverOverlayMarkup() {
   ].join("");
 }
 
+function shouldRunLoop() {
+  return isReady() && !paused && !gameOver && !document.hidden;
+}
+
 function themeColor(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -99,23 +104,6 @@ function pulseRestartButton() {
   }, RESTART_PRESS_MS);
 }
 
-function createGame() {
-  game = new WebGame();
-  paused = false;
-  gameOver = false;
-  pendingDirection = undefined;
-
-  canvas.width = game.width() * CELL_SIZE;
-  canvas.height = game.height() * CELL_SIZE;
-
-  scoreNode.textContent = "0";
-  statusNode.textContent = idleStatusText();
-  pauseButton.innerHTML = pauseIcon;
-  setPauseButtonState(false);
-  setOverlay("");
-  render();
-}
-
 function setOverlay(markup) {
   overlay.innerHTML = markup;
   overlay.classList.toggle("hidden", markup.length === 0);
@@ -129,35 +117,95 @@ function drawCell(x, y, color, inset = 0) {
   context.fillRect(px, py, size, size);
 }
 
-function render() {
-  const colors = palette();
-  context.fillStyle = colors.board;
-  context.fillRect(0, 0, canvas.width, canvas.height);
+function drawCellTo(targetContext, x, y, color, inset = 0) {
+  const px = x * CELL_SIZE + inset;
+  const py = y * CELL_SIZE + inset;
+  const size = CELL_SIZE - inset * 2;
+  targetContext.fillStyle = color;
+  targetContext.fillRect(px, py, size, size);
+}
 
-  for (let y = 0; y < game.height(); y += 1) {
-    for (let x = 0; x < game.width(); x += 1) {
-      drawCell(x, y, colors.grid, 0.4);
+function renderStaticLayer() {
+  currentPalette = palette();
 
-      const cell = game.cell_at(x, y);
-      if (cell === WALL) {
-        drawCell(x, y, colors.wall, 0.9);
-      } else if (cell === FOOD) {
-        drawCell(x, y, colors.food, ENTITY_INSET);
-      } else if (cell === SNAKE) {
-        drawCell(x, y, colors.snake, ENTITY_INSET);
-      }
+  staticContext.fillStyle = currentPalette.board;
+  staticContext.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
+
+  for (let y = 0; y < boardHeight; y += 1) {
+    for (let x = 0; x < boardWidth; x += 1) {
+      drawCellTo(staticContext, x, y, currentPalette.grid, 0.4);
     }
   }
 
-  const headX = game.head_x();
-  const headY = game.head_y();
-  if (game.cell_at(headX, headY) === SNAKE) {
-    drawCell(headX, headY, colors.snakeHead, ENTITY_INSET);
+  for (let x = 0; x < boardWidth; x += 1) {
+    drawCellTo(staticContext, x, 0, currentPalette.wall, 0.9);
+    drawCellTo(staticContext, x, boardHeight - 1, currentPalette.wall, 0.9);
+  }
+
+  for (let y = 1; y < boardHeight - 1; y += 1) {
+    drawCellTo(staticContext, 0, y, currentPalette.wall, 0.9);
+    drawCellTo(staticContext, boardWidth - 1, y, currentPalette.wall, 0.9);
   }
 }
 
+function render() {
+  context.drawImage(staticCanvas, 0, 0);
+
+  const foodCount = game.food_len();
+  for (let i = 0; i < foodCount; i += 1) {
+    drawCell(game.food_x(i), game.food_y(i), currentPalette.food, ENTITY_INSET);
+  }
+
+  const snakeCount = game.snake_len();
+  for (let i = 0; i < snakeCount; i += 1) {
+    drawCell(game.snake_x(i), game.snake_y(i), currentPalette.snake, ENTITY_INSET);
+  }
+
+  if (snakeCount > 0) {
+    drawCell(game.snake_x(0), game.snake_y(0), currentPalette.snakeHead, ENTITY_INSET);
+  }
+}
+
+function createGame() {
+  game = new WebGame();
+  paused = false;
+  gameOver = false;
+  pendingDirection = undefined;
+  boardWidth = game.width();
+  boardHeight = game.height();
+
+  canvas.width = boardWidth * CELL_SIZE;
+  canvas.height = boardHeight * CELL_SIZE;
+  staticCanvas.width = canvas.width;
+  staticCanvas.height = canvas.height;
+
+  scoreNode.textContent = "0";
+  statusNode.textContent = idleStatusText();
+  pauseButton.innerHTML = pauseIcon;
+  setPauseButtonState(false);
+  setOverlay("");
+  renderStaticLayer();
+  render();
+  startLoop();
+}
+
+function stopLoop() {
+  if (timerId !== undefined) {
+    window.clearInterval(timerId);
+    timerId = undefined;
+  }
+}
+
+function startLoop() {
+  if (!shouldRunLoop() || timerId !== undefined) {
+    return;
+  }
+  timerId = window.setInterval(step, TICK_MS);
+}
+
 function step() {
-  if (paused || gameOver) {
+  if (!shouldRunLoop()) {
+    stopLoop();
     return;
   }
 
@@ -175,6 +223,7 @@ function step() {
     statusNode.textContent = "Game over.";
     setPauseButtonState(false);
     setOverlay(gameOverOverlayMarkup());
+    stopLoop();
   }
 }
 
@@ -183,6 +232,7 @@ function restart() {
     return;
   }
   pulseRestartButton();
+  stopLoop();
   createGame();
 }
 
@@ -191,6 +241,11 @@ function togglePause() {
     return;
   }
   paused = !paused;
+  if (paused) {
+    stopLoop();
+  } else {
+    startLoop();
+  }
   setPauseButtonState(paused);
   statusNode.textContent = paused ? "Paused." : idleStatusText();
   setOverlay(paused ? "Paused" : "");
@@ -247,7 +302,6 @@ function pressDpadButton(button) {
 async function main() {
   await init();
   createGame();
-  timerId = window.setInterval(step, TICK_MS);
 }
 
 window.addEventListener("keydown", (event) => {
@@ -315,13 +369,12 @@ dpadButtons.forEach((button) => {
 });
 
 window.addEventListener("beforeunload", () => {
-  if (timerId !== undefined) {
-    window.clearInterval(timerId);
-  }
+  stopLoop();
 });
 
 const handleThemeChange = () => {
   if (game) {
+    renderStaticLayer();
     render();
   }
 };
@@ -334,6 +387,14 @@ const handleInputModeChange = () => {
     statusNode.textContent = idleStatusText();
   }
   render();
+};
+
+const handleVisibilityChange = () => {
+  if (shouldRunLoop()) {
+    startLoop();
+  } else {
+    stopLoop();
+  }
 };
 
 if (typeof themeQuery.addEventListener === "function") {
@@ -353,6 +414,8 @@ if (typeof touchControlsQuery.addEventListener === "function") {
 } else if (typeof touchControlsQuery.addListener === "function") {
   touchControlsQuery.addListener(handleInputModeChange);
 }
+
+document.addEventListener("visibilitychange", handleVisibilityChange);
 
 main().catch((error) => {
   console.error(error);

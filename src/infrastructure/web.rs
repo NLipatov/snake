@@ -1,5 +1,5 @@
 use crate::domain::game::{Game, GameCommand, GameResult};
-use crate::domain::grid::{Grid, GridCell, Point};
+use crate::domain::grid::{Grid, Point};
 use crate::domain::grid_geometry::GridGeometry;
 use crate::domain::snake::{Direction, Snake};
 use wasm_bindgen::prelude::*;
@@ -77,48 +77,46 @@ impl WebGame {
         self.game.grid().height()
     }
 
-    pub fn cell_at(&self, x: i32, y: i32) -> u8 {
-        let point = Point::new(x, y);
-        if self.game.snake().occupies(&point) {
-            return 3;
-        }
-        if !self.game.grid().in_bounds(&point) {
-            return u8::MAX;
-        }
-        match self.game.grid().cell(&point) {
-            GridCell::Empty => 0,
-            GridCell::Wall => 1,
-            GridCell::Food => 2,
-        }
+    pub fn snake_len(&self) -> u32 {
+        self.game.snake_len() as u32
     }
 
-    pub fn head_x(&self) -> i32 {
-        self.game.snake().head().x
+    pub fn snake_x(&self, index: u32) -> i32 {
+        self.game
+            .snake_point_at(index as usize)
+            .expect("snake point index should be in bounds")
+            .x
     }
 
-    pub fn head_y(&self) -> i32 {
-        self.game.snake().head().y
+    pub fn snake_y(&self, index: u32) -> i32 {
+        self.game
+            .snake_point_at(index as usize)
+            .expect("snake point index should be in bounds")
+            .y
+    }
+
+    pub fn food_len(&self) -> u32 {
+        self.game.food_len() as u32
+    }
+
+    pub fn food_x(&self, index: u32) -> i32 {
+        self.game
+            .food_point_at(index as usize)
+            .expect("food point index should be in bounds")
+            .x
+    }
+
+    pub fn food_y(&self, index: u32) -> i32 {
+        self.game
+            .food_point_at(index as usize)
+            .expect("food point index should be in bounds")
+            .y
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_HEIGHT, DEFAULT_START_X, DEFAULT_START_Y, DEFAULT_WIDTH, WebGame};
-    use crate::domain::game::Game;
-    use crate::domain::grid::{Grid, GridCell, Point};
-    use crate::domain::grid_geometry::GridGeometry;
-    use crate::domain::snake::Snake;
-
-    fn web_game_with_food(food_at: Point) -> WebGame {
-        let geometry = GridGeometry::new(8, 8);
-        let mut grid = Grid::new(geometry);
-        grid.change_cell(&food_at, GridCell::Food);
-        let snake = Snake::new(Point::new(3, 3), geometry).expect("snake should fit in grid");
-
-        WebGame {
-            game: Game::new(grid, snake, 0),
-        }
-    }
 
     #[test]
     fn new_uses_default_configuration() {
@@ -126,21 +124,10 @@ mod tests {
 
         assert_eq!(game.width(), DEFAULT_WIDTH);
         assert_eq!(game.height(), DEFAULT_HEIGHT);
-        assert_eq!(game.head_x(), DEFAULT_START_X);
-        assert_eq!(game.head_y(), DEFAULT_START_Y);
         assert_eq!(game.score(), 0);
-        assert_eq!(game.cell_at(DEFAULT_START_X, DEFAULT_START_Y), 3);
-    }
-
-    #[test]
-    fn cell_at_reports_snake_food_wall_empty_and_out_of_bounds() {
-        let game = web_game_with_food(Point::new(4, 4));
-
-        assert_eq!(game.cell_at(3, 3), 3);
-        assert_eq!(game.cell_at(4, 4), 2);
-        assert_eq!(game.cell_at(0, 0), 1);
-        assert_eq!(game.cell_at(4, 3), 0);
-        assert_eq!(game.cell_at(-1, 0), u8::MAX);
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_x(0), DEFAULT_START_X);
+        assert_eq!(game.snake_y(0), DEFAULT_START_Y);
     }
 
     #[test]
@@ -151,27 +138,37 @@ mod tests {
         move_up.move_left();
         move_up.move_up();
         assert!(move_up.tick());
-        assert_eq!((move_up.head_x(), move_up.head_y()), (3, 2));
+        assert_eq!((move_up.snake_x(0), move_up.snake_y(0)), (3, 2));
 
         let mut move_down =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_down.move_down();
         assert!(move_down.tick());
-        assert_eq!((move_down.head_x(), move_down.head_y()), (3, 4));
+        assert_eq!((move_down.snake_x(0), move_down.snake_y(0)), (3, 4));
 
         let mut move_left =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_left.move_down();
         move_left.move_left();
         assert!(move_left.tick());
-        assert_eq!((move_left.head_x(), move_left.head_y()), (2, 3));
+        assert_eq!((move_left.snake_x(0), move_left.snake_y(0)), (2, 3));
 
         let mut move_right =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_right.move_down();
         move_right.move_right();
         assert!(move_right.tick());
-        assert_eq!((move_right.head_x(), move_right.head_y()), (4, 3));
+        assert_eq!((move_right.snake_x(0), move_right.snake_y(0)), (4, 3));
+    }
+
+    #[test]
+    fn indexed_accessors_expose_dynamic_entities() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        assert_eq!(game.snake_len(), 1);
+        assert_eq!(game.snake_x(0), 3);
+        assert_eq!(game.snake_y(0), 3);
+        assert_eq!(game.food_len(), 0);
     }
 
     #[test]
@@ -180,14 +177,38 @@ mod tests {
             WebGame::with_config(4, 4, 3, 1, 0).expect("web game should initialize in bounds");
 
         assert!(!game.tick());
-        assert_eq!((game.head_x(), game.head_y()), (4, 1));
+        assert_eq!((game.snake_x(0), game.snake_y(0)), (4, 1));
     }
 
     #[test]
-    fn score_increases_after_eating_food() {
-        let mut game = web_game_with_food(Point::new(4, 3));
+    #[should_panic(expected = "snake point index should be in bounds")]
+    fn snake_x_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
 
-        assert!(game.tick());
-        assert_eq!(game.score(), 1);
+        let _ = game.snake_x(1);
+    }
+
+    #[test]
+    #[should_panic(expected = "snake point index should be in bounds")]
+    fn snake_y_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.snake_y(1);
+    }
+
+    #[test]
+    #[should_panic(expected = "food point index should be in bounds")]
+    fn food_x_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.food_x(0);
+    }
+
+    #[test]
+    #[should_panic(expected = "food point index should be in bounds")]
+    fn food_y_panics_for_out_of_bounds_index() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        let _ = game.food_y(0);
     }
 }
