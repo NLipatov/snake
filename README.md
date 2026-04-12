@@ -3,9 +3,25 @@
 
 # snake 🐍
 
-A small Snake game written by hand in Rust, with both terminal and browser frontends.
+⚡ Blazing fast Snake game in Rust for terminal and WebAssembly-powered web.
 
-Play in browser: https://snake.ethacore.com
+Play now at: https://snake.ethacore.com
+
+## Controls 🎮
+
+### Web
+
+- Arrow keys: move on desktop
+- On-screen `D-pad`: move on phones and tablets
+- `Space`: pause/resume on desktop
+- `Esc`: restart on desktop
+- `Restart` button or `D-pad`: restart after game over on touch devices
+
+### Terminal
+
+- Arrow keys: move
+- `Space`: pause/resume
+- `Esc`: quit
 
 ## Run In Terminal ▶️
 
@@ -28,10 +44,3 @@ python3 -m http.server --directory web 8000
 ```
 
 Then open `http://localhost:8000`.
-
-## Controls 🎮
-
-- Arrow keys: move on desktop
-- On-screen `D-pad`: move on phones and tablets
-- `Space`: pause/resume in the browser
-- `Esc`: quit in terminal, restart in the browser
