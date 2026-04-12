@@ -1,5 +1,5 @@
 use crate::domain::game::{Game, GameCommand, GameResult};
-use crate::domain::grid::{Grid, GridCell, Point};
+use crate::domain::grid::{Grid, Point};
 use crate::domain::grid_geometry::GridGeometry;
 use crate::domain::snake::{Direction, Snake};
 use wasm_bindgen::prelude::*;
@@ -77,29 +77,18 @@ impl WebGame {
         self.game.grid().height()
     }
 
-    pub fn cell_at(&self, x: i32, y: i32) -> u8 {
-        let point = Point::new(x, y);
-        if self.game.snake().occupies(&point) {
-            return 3;
-        }
-        if self.game.food_at(&point) {
-            return 2;
-        }
-        if !self.game.grid().in_bounds(&point) {
-            return u8::MAX;
-        }
-        match self.game.grid().cell(&point) {
-            GridCell::Empty => 0,
-            GridCell::Wall => 1,
-        }
+    pub fn snake_points_flat(&self) -> Vec<i32> {
+        self.game
+            .snake_points()
+            .flat_map(|point| [point.x, point.y])
+            .collect()
     }
 
-    pub fn head_x(&self) -> i32 {
-        self.game.snake().head().x
-    }
-
-    pub fn head_y(&self) -> i32 {
-        self.game.snake().head().y
+    pub fn food_points_flat(&self) -> Vec<i32> {
+        self.game
+            .food_points()
+            .flat_map(|point| [point.x, point.y])
+            .collect()
     }
 }
 
@@ -113,20 +102,11 @@ mod tests {
 
         assert_eq!(game.width(), DEFAULT_WIDTH);
         assert_eq!(game.height(), DEFAULT_HEIGHT);
-        assert_eq!(game.head_x(), DEFAULT_START_X);
-        assert_eq!(game.head_y(), DEFAULT_START_Y);
         assert_eq!(game.score(), 0);
-        assert_eq!(game.cell_at(DEFAULT_START_X, DEFAULT_START_Y), 3);
-    }
-
-    #[test]
-    fn cell_at_reports_snake_wall_empty_and_out_of_bounds() {
-        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
-
-        assert_eq!(game.cell_at(3, 3), 3);
-        assert_eq!(game.cell_at(0, 0), 1);
-        assert_eq!(game.cell_at(4, 3), 0);
-        assert_eq!(game.cell_at(-1, 0), u8::MAX);
+        assert_eq!(
+            game.snake_points_flat(),
+            vec![DEFAULT_START_X, DEFAULT_START_Y]
+        );
     }
 
     #[test]
@@ -137,27 +117,35 @@ mod tests {
         move_up.move_left();
         move_up.move_up();
         assert!(move_up.tick());
-        assert_eq!((move_up.head_x(), move_up.head_y()), (3, 2));
+        assert_eq!(move_up.snake_points_flat(), vec![3, 2]);
 
         let mut move_down =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_down.move_down();
         assert!(move_down.tick());
-        assert_eq!((move_down.head_x(), move_down.head_y()), (3, 4));
+        assert_eq!(move_down.snake_points_flat(), vec![3, 4]);
 
         let mut move_left =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_left.move_down();
         move_left.move_left();
         assert!(move_left.tick());
-        assert_eq!((move_left.head_x(), move_left.head_y()), (2, 3));
+        assert_eq!(move_left.snake_points_flat(), vec![2, 3]);
 
         let mut move_right =
             WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize in bounds");
         move_right.move_down();
         move_right.move_right();
         assert!(move_right.tick());
-        assert_eq!((move_right.head_x(), move_right.head_y()), (4, 3));
+        assert_eq!(move_right.snake_points_flat(), vec![4, 3]);
+    }
+
+    #[test]
+    fn flat_point_accessors_expose_dynamic_entities() {
+        let game = WebGame::with_config(8, 8, 3, 3, 0).expect("web game should initialize");
+
+        assert_eq!(game.snake_points_flat(), vec![3, 3]);
+        assert!(game.food_points_flat().is_empty());
     }
 
     #[test]
@@ -166,6 +154,6 @@ mod tests {
             WebGame::with_config(4, 4, 3, 1, 0).expect("web game should initialize in bounds");
 
         assert!(!game.tick());
-        assert_eq!((game.head_x(), game.head_y()), (4, 1));
+        assert_eq!(game.snake_points_flat(), vec![4, 1]);
     }
 }
