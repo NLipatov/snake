@@ -1,7 +1,7 @@
 {
-  "name": "snake",
-  "short_name": "snake",
-  "description": "Blazing fast Snake game in Rust for terminal and WebAssembly-powered web.",
+  "name": "Play Classic Snake Game Online",
+  "short_name": "Snake",
+  "description": "Play a classic Snake game online with keyboard and touch controls. Guide the snake, collect food, and chase your highest score.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
