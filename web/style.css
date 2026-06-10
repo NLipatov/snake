@@ -9,11 +9,6 @@
   --text: #1f241d;
   --muted: #54604d;
   --scoreboard-bg: #bbb39f;
-  --score-screen-bezel: #505a4a;
-  --score-screen-bezel-shadow: #171d16;
-  --score-screen: #132013;
-  --score-screen-line: rgba(255, 255, 255, 0.05);
-  --score-screen-label: #8fd39f;
   --canvas-frame: #263127;
   --canvas-bezel: #535b4a;
   --canvas-bezel-shadow: #161b14;
@@ -43,11 +38,6 @@
     --text: #ebf5e7;
     --muted: #9eb09b;
     --scoreboard-bg: #1f241e;
-    --score-screen-bezel: #3f4838;
-    --score-screen-bezel-shadow: #0d110a;
-    --score-screen: #0b130c;
-    --score-screen-line: rgba(255, 255, 255, 0.04);
-    --score-screen-label: #7fe3a0;
     --canvas-frame: #20261d;
     --canvas-bezel: #3f4838;
     --canvas-bezel-shadow: #0d110a;
@@ -88,10 +78,6 @@ body {
 button,
 canvas {
   font: inherit;
-}
-
-button,
-canvas {
   touch-action: manipulation;
 }
 
@@ -130,44 +116,64 @@ canvas {
   gap: 0.75rem;
 }
 
-.scoreboard {
+.scoreboard,
+.canvas-frame {
   position: relative;
-  display: grid;
-  gap: 0.25rem;
-  min-width: 7.25rem;
-  padding: 0.5rem 0.75rem 0.625rem;
-  border: 0.125rem solid var(--panel-shadow);
-  background: var(--scoreboard-bg);
-  box-shadow:
-    inset 0.0625rem 0.0625rem 0 var(--panel-edge),
-    inset -0.0625rem -0.0625rem 0 rgba(0, 0, 0, 0.16);
   overflow: hidden;
+  border: var(--screen-border-width) solid var(--canvas-bezel-shadow);
+  background: var(--canvas-frame);
+  box-shadow:
+    inset 0 0 0 var(--screen-bezel-width) var(--canvas-bezel),
+    inset 0 0 0 var(--screen-bezel-shadow-width) var(--canvas-bezel-shadow),
+    0 0 0 var(--screen-outline-width) var(--canvas-frame-outline);
+}
+
+.scoreboard {
+  --screen-border-width: 0.125rem;
+  --screen-bezel-width: 0.1875rem;
+  --screen-bezel-shadow-width: 0.375rem;
+  --screen-outline-width: 0.0625rem;
+  --screen-content-inset: 0.5rem;
+  --score-font-size: 0.875rem;
+  --score-gap: 0.375rem;
+  --score-text-pad-block: 0.125rem;
+  --score-text-pad-inline: 0.25rem;
+
+  display: flex;
+  align-items: center;
+  gap: var(--score-gap);
+  inline-size: 7.125rem;
+  padding:
+    calc(var(--screen-content-inset) + var(--score-text-pad-block))
+    calc(var(--screen-content-inset) + var(--score-text-pad-inline));
 }
 
 .scoreboard::before {
   content: "";
   position: absolute;
-  inset: 0.375rem;
-  border: 0.125rem solid var(--score-screen-bezel-shadow);
-  box-shadow:
-    inset 0 0 0 0.1875rem var(--score-screen-bezel),
-    inset 0 0 0 0.375rem var(--score-screen-bezel-shadow);
-  background: var(--score-screen);
+  inset: var(--screen-content-inset);
+  box-shadow: 0 0 1.25rem var(--screen-glow);
+  background: var(--canvas-grid);
 }
 
-.scoreboard::after {
+.scoreboard::after,
+.canvas-frame::after {
   content: "";
   position: absolute;
-  inset: 0.75rem;
+  pointer-events: none;
+  opacity: 0.2;
   background: repeating-linear-gradient(
     180deg,
-    var(--score-screen-line) 0,
-    var(--score-screen-line) 0.0625rem,
+    rgba(255, 255, 255, 0.05) 0,
+    rgba(255, 255, 255, 0.05) 0.0625rem,
     transparent 0.0625rem,
     transparent 0.25rem
   );
-  opacity: 0.3;
-  pointer-events: none;
+}
+
+.scoreboard::after {
+  inset: var(--screen-content-inset);
+  z-index: 2;
 }
 
 .score-label,
@@ -191,25 +197,34 @@ canvas {
 .score-label,
 .scoreboard strong {
   position: relative;
-  z-index: 1;
+  z-index: 3;
+  color: var(--canvas-snake-head);
+  font-size: var(--score-font-size);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 0.625rem var(--screen-glow);
 }
 
 .score-label {
-  padding-left: 0.25rem;
-  color: var(--score-screen-label);
-  text-shadow: 0 0 0.5rem var(--screen-glow);
+  flex: 0 0 auto;
 }
 
 .scoreboard strong {
-  padding-left: 0.25rem;
-  font-size: 1.7rem;
-  color: var(--canvas-snake-head);
-  text-shadow: 0 0 0.625rem var(--screen-glow);
+  flex: 0 1 auto;
+  margin-left: auto;
+  min-width: 0;
+  max-inline-size: 3.5ch;
+  overflow: hidden;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.06em;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .controls {
+  --control-size: 2.625rem;
+  --control-icon-size: 1.125rem;
+
   display: flex;
   gap: 0.5rem;
   padding: 0.3125rem;
@@ -221,24 +236,27 @@ canvas {
     inset -0.0625rem -0.0625rem 0 rgba(0, 0, 0, 0.18);
 }
 
-.controls button {
+.controls button,
+.dpad-button {
   border: 0.125rem solid var(--control-border);
-  border-radius: 0.5625rem;
-  width: 2.625rem;
-  height: 2.625rem;
-  padding: 0;
   color: #fff;
   background: linear-gradient(180deg, var(--control-surface), var(--control-surface-dark));
   box-shadow:
     inset 0.0625rem 0.0625rem 0 rgba(255, 255, 255, 0.18),
     inset -0.125rem -0.125rem 0 rgba(0, 0, 0, 0.26);
+}
+
+.controls button {
+  flex: 0 0 var(--control-size);
+  border-radius: 0.5625rem;
+  inline-size: var(--control-size);
+  block-size: var(--control-size);
+  padding: 0;
   cursor: pointer;
   transition: box-shadow 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .icon-button {
-  width: 2.625rem;
-  height: 2.625rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -251,26 +269,18 @@ canvas {
 }
 
 .icon-button svg {
-  width: 1.125rem;
-  height: 1.125rem;
+  width: var(--control-icon-size);
+  height: var(--control-icon-size);
   display: block;
   flex: 0 0 auto;
   margin: 0 auto;
 }
 
-.controls button:hover {
-  background: linear-gradient(180deg, var(--control-surface), var(--control-surface-dark));
-}
-
-.controls button:active {
-  background: linear-gradient(180deg, var(--control-surface-dark), var(--control-surface));
-  box-shadow:
-    inset 0.125rem 0.125rem 0 rgba(0, 0, 0, 0.26),
-    inset -0.0625rem -0.0625rem 0 rgba(255, 255, 255, 0.08);
-}
-
+.controls button:active,
 .controls button.is-pressed,
-.controls button[aria-pressed="true"] {
+.controls button[aria-pressed="true"],
+.dpad-button:active,
+.dpad-button.is-pressed {
   background: linear-gradient(180deg, var(--control-surface-dark), var(--control-surface));
   box-shadow:
     inset 0.125rem 0.125rem 0 rgba(0, 0, 0, 0.26),
@@ -288,15 +298,13 @@ canvas {
 }
 
 .canvas-frame {
-  position: relative;
-  overflow: hidden;
-  padding: 1.125rem;
-  border: 0.1875rem solid var(--canvas-bezel-shadow);
-  box-shadow:
-    inset 0 0 0 0.25rem var(--canvas-bezel),
-    inset 0 0 0 0.5rem var(--canvas-bezel-shadow),
-    0 0 0 0.125rem var(--canvas-frame-outline);
-  background: var(--canvas-frame);
+  --screen-border-width: 0.1875rem;
+  --screen-bezel-width: 0.25rem;
+  --screen-bezel-shadow-width: 0.5rem;
+  --screen-outline-width: 0.125rem;
+  --screen-content-inset: 1.125rem;
+
+  padding: var(--screen-content-inset);
 }
 
 #board,
@@ -306,6 +314,11 @@ canvas {
 }
 
 #board {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
   box-shadow:
     inset 0 0 2.25rem rgba(0, 0, 0, 0.22),
     0 0 1.75rem var(--screen-glow);
@@ -314,7 +327,7 @@ canvas {
 .canvas-frame::before {
   content: "";
   position: absolute;
-  inset: 1.125rem;
+  inset: var(--screen-content-inset);
   z-index: 2;
   pointer-events: none;
   background:
@@ -323,27 +336,8 @@ canvas {
 }
 
 .canvas-frame::after {
-  content: "";
-  position: absolute;
-  inset: 1.125rem;
+  inset: var(--screen-content-inset);
   z-index: 3;
-  pointer-events: none;
-  opacity: 0.2;
-  background: repeating-linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0,
-    rgba(255, 255, 255, 0.05) 0.0625rem,
-    transparent 0.0625rem,
-    transparent 0.25rem
-  );
-}
-
-#board {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto;
 }
 
 .dpad {
@@ -364,14 +358,8 @@ canvas {
 .dpad-button {
   position: relative;
   z-index: 1;
-  border: 0.125rem solid var(--control-border);
-  color: #fff;
   font-size: 1.7rem;
   font-weight: 700;
-  background: linear-gradient(180deg, var(--control-surface), var(--control-surface-dark));
-  box-shadow:
-    inset 0.0625rem 0.0625rem 0 rgba(255, 255, 255, 0.18),
-    inset -0.125rem -0.125rem 0 rgba(0, 0, 0, 0.26);
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
   user-select: none;
@@ -381,20 +369,6 @@ canvas {
   grid-column: 2;
   grid-row: 2;
   border: 0.125rem solid var(--control-border);
-  background: linear-gradient(180deg, var(--control-surface-dark), var(--control-surface));
-  box-shadow:
-    inset 0.125rem 0.125rem 0 rgba(0, 0, 0, 0.26),
-    inset -0.0625rem -0.0625rem 0 rgba(255, 255, 255, 0.08);
-}
-
-.dpad-button:active {
-  background: linear-gradient(180deg, var(--control-surface-dark), var(--control-surface));
-  box-shadow:
-    inset 0.125rem 0.125rem 0 rgba(0, 0, 0, 0.26),
-    inset -0.0625rem -0.0625rem 0 rgba(255, 255, 255, 0.08);
-}
-
-.dpad-button.is-pressed {
   background: linear-gradient(180deg, var(--control-surface-dark), var(--control-surface));
   box-shadow:
     inset 0.125rem 0.125rem 0 rgba(0, 0, 0, 0.26),
@@ -427,7 +401,7 @@ canvas {
 
 .overlay {
   position: absolute;
-  inset: 1.125rem;
+  inset: var(--screen-content-inset);
   z-index: 4;
   display: grid;
   place-items: center;
@@ -504,34 +478,20 @@ canvas {
   }
 
   .scoreboard {
-    display: flex;
-    align-items: baseline;
-    gap: 0.3125rem;
-    min-width: auto;
-    padding: 0.3025rem 0.529375rem 0.378125rem;
+    --screen-content-inset: 0.4375rem;
+    --score-font-size: 0.78rem;
+    --score-gap: 0.3125rem;
+    --score-text-pad-block: 0.125rem;
+    --score-text-pad-inline: 0.1875rem;
+
+    flex: 0 0 6.75rem;
+    inline-size: 6.75rem;
+    min-width: 0;
+    max-inline-size: 100%;
   }
 
   .scoreboard::before {
-    inset: 0.25rem;
-  }
-
-  .scoreboard::after {
-    inset: 0.5rem;
-  }
-
-  .score-label,
-  .scoreboard strong {
-    padding-left: 0.125rem;
-  }
-
-  .score-label {
-    font-size: 0.64rem;
-  }
-
-  .scoreboard strong {
-    font-size: 0.8311rem;
-    min-width: 5ch;
-    text-align: right;
+    box-shadow: 0 0 1rem var(--screen-glow);
   }
 
   .panel-footer {
@@ -539,25 +499,13 @@ canvas {
   }
 
   .controls {
+    --control-size: 2.125rem;
+    --control-icon-size: 0.9375rem;
+
     width: auto;
     flex: 0 0 auto;
     gap: 0.1875rem;
     padding: 0.125rem;
-  }
-
-  .controls button {
-    flex: 0 0 auto;
-  }
-
-  .controls .icon-button {
-    max-width: 2.75rem;
-    width: 2.125rem;
-    height: 2.125rem;
-  }
-
-  .controls .icon-button svg {
-    width: 0.9375rem;
-    height: 0.9375rem;
   }
 
   .touch-controls {
@@ -571,14 +519,14 @@ canvas {
   }
 
   .dpad {
-    --dpad-size: 17.9685rem;
-    --dpad-thickness: 5.4934rem;
-    --dpad-arm-size: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    --dpad-size: min(18rem, 100%);
+    --dpad-thickness: 31.25%;
+    --dpad-arm-size: calc((100% - var(--dpad-thickness)) / 2);
 
     position: relative;
     display: block;
-    width: var(--dpad-size);
-    height: var(--dpad-size);
+    inline-size: var(--dpad-size);
+    aspect-ratio: 1;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -601,33 +549,33 @@ canvas {
 
   .dpad-button.up {
     top: 0;
-    left: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
-    width: var(--dpad-thickness);
-    height: var(--dpad-arm-size);
+    left: var(--dpad-arm-size);
+    inline-size: var(--dpad-thickness);
+    block-size: var(--dpad-arm-size);
     border-radius: 1.125rem 1.125rem 0.5rem 0.5rem;
   }
 
   .dpad-button.left {
-    top: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    top: var(--dpad-arm-size);
     left: 0;
-    width: var(--dpad-arm-size);
-    height: var(--dpad-thickness);
+    inline-size: var(--dpad-arm-size);
+    block-size: var(--dpad-thickness);
     border-radius: 1.125rem 0.5rem 0.5rem 1.125rem;
   }
 
   .dpad-button.right {
-    top: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
+    top: var(--dpad-arm-size);
     right: 0;
-    width: var(--dpad-arm-size);
-    height: var(--dpad-thickness);
+    inline-size: var(--dpad-arm-size);
+    block-size: var(--dpad-thickness);
     border-radius: 0.5rem 1.125rem 1.125rem 0.5rem;
   }
 
   .dpad-button.down {
     bottom: 0;
-    left: calc((var(--dpad-size) - var(--dpad-thickness)) / 2);
-    width: var(--dpad-thickness);
-    height: var(--dpad-arm-size);
+    left: var(--dpad-arm-size);
+    inline-size: var(--dpad-thickness);
+    block-size: var(--dpad-arm-size);
     border-radius: 0.5rem 0.5rem 1.125rem 1.125rem;
   }
 }
@@ -639,44 +587,22 @@ canvas {
   }
 
   .scoreboard {
-    gap: 0.3125rem;
-    padding: 0.3025rem 0.529375rem 0.378125rem;
-  }
+    --screen-content-inset: 0.375rem;
+    --score-font-size: 0.72rem;
+    --score-text-pad-block: 0.09375rem;
+    --score-text-pad-inline: 0.1875rem;
 
-  .score-label {
-    font-size: 0.6rem;
-    padding-left: 0.09375rem;
-  }
-
-  .scoreboard strong {
-    font-size: 0.7144rem;
-    padding-left: 0.09375rem;
+    flex-basis: 6.375rem;
+    inline-size: 6.375rem;
   }
 
   .controls {
-    gap: 0.25rem;
-    padding: 0.125rem;
-  }
-
-  .controls button,
-  .controls .icon-button {
-    width: 1.875rem;
-    height: 1.875rem;
-  }
-
-  .controls .icon-button svg {
-    width: 0.8125rem;
-    height: 0.8125rem;
+    --control-size: 1.875rem;
+    --control-icon-size: 0.8125rem;
   }
 
   .canvas-frame {
-    padding: 0.875rem;
-  }
-
-  .canvas-frame::before,
-  .canvas-frame::after,
-  .overlay {
-    inset: 0.875rem;
+    --screen-content-inset: 0.875rem;
   }
 
   .overlay-shortcuts {
@@ -689,8 +615,7 @@ canvas {
   }
 
   .dpad {
-    --dpad-size: 16.3048rem;
-    --dpad-thickness: 4.9913rem;
+    --dpad-size: min(16.25rem, 100%);
   }
 
   .dpad-button {
