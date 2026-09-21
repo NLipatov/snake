@@ -1,16 +1,10 @@
-use crate::domain::game::GameResult::GameOver;
+use crate::domain::game::GameState::GameOver;
 use crate::domain::game::{Game, GameCommand};
 use crate::domain::snake::Direction::{Down, Left, Right, Up};
 use crate::infrastructure::raw_mode_guard::RawModeGuard;
 use crate::infrastructure::terminal::{Terminal, TerminalCommand};
-use crate::presentation::cli::PauseDecision::{Quit, Resume};
 use crate::presentation::renderer::Renderer;
 use std::time::Duration;
-
-enum PauseDecision {
-    Resume,
-    Quit,
-}
 
 pub enum RunResult {
     GameOver { score: usize },
@@ -42,18 +36,11 @@ impl Cli {
                             score: self.game.score(),
                         };
                     }
-                    TerminalCommand::Space => match self.pause_loop() {
-                        Resume => continue,
-                        Quit => {
-                            return RunResult::Quit {
-                                score: self.game.score(),
-                            };
-                        }
-                    },
                     TerminalCommand::Down => self.game.apply_command(GameCommand::Move(Down)),
                     TerminalCommand::Up => self.game.apply_command(GameCommand::Move(Up)),
                     TerminalCommand::Left => self.game.apply_command(GameCommand::Move(Left)),
                     TerminalCommand::Right => self.game.apply_command(GameCommand::Move(Right)),
+                    TerminalCommand::Space => self.game.apply_command(GameCommand::TogglePause),
                 }
             }
             if let GameOver = self.game.tick() {
@@ -65,15 +52,6 @@ impl Cli {
         self.renderer.render(&self.game, self.game.score());
         RunResult::GameOver {
             score: self.game.score(),
-        }
-    }
-    fn pause_loop(&self) -> PauseDecision {
-        loop {
-            match self.terminal.wait_for_command_sync() {
-                Some(TerminalCommand::Space) => return Resume,
-                Some(TerminalCommand::Escape) => return Quit,
-                _ => continue,
-            }
         }
     }
 }

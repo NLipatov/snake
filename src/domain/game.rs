@@ -1,4 +1,4 @@
-use crate::domain::game::GameResult::{GameOver, Running};
+use crate::domain::game::GameState::{GameOver, Paused, Running};
 use crate::domain::grid::GridCell::{Empty, Wall};
 use crate::domain::grid::{Grid, Point};
 use crate::domain::snake::{Direction, MoveResult, Snake};
@@ -7,11 +7,14 @@ use std::collections::HashSet;
 
 pub enum GameCommand {
     Move(Direction),
+    TogglePause,
 }
 
-pub enum GameResult {
+#[derive(PartialEq)]
+pub enum GameState {
     GameOver,
     Running,
+    Paused,
 }
 
 pub struct Game {
@@ -20,6 +23,7 @@ pub struct Game {
     rng: rngs::ThreadRng,
     food_spawn_attempt_probability: i32,
     food_points: HashSet<Point>,
+    state: GameState,
 }
 
 impl Game {
@@ -35,16 +39,36 @@ impl Game {
             rng,
             food_spawn_attempt_probability,
             food_points: HashSet::new(),
+            state: Running,
         }
     }
     pub fn apply_command(&mut self, command: GameCommand) {
-        match command {
-            GameCommand::Move(direction) => {
-                self.snake.set_direction(direction);
+        match self.state {
+            Running => match command {
+                GameCommand::Move(direction) => {
+                    self.snake.set_direction(direction);
+                }
+                GameCommand::TogglePause => self.state = Paused,
+            },
+            Paused => {
+                if let GameCommand::TogglePause = command {
+                    self.state = Running
+                }
             }
+            _ => {}
         }
     }
-    pub fn tick(&mut self) -> GameResult {
+    pub fn tick(&mut self) -> &GameState {
+        self.state = self.do_tick();
+        &self.state
+    }
+    fn do_tick(&mut self) -> GameState {
+        if self.state == GameOver {
+            return GameOver;
+        }
+        if self.state == Paused {
+            return Paused;
+        }
         if let MoveResult::SelfCollision = self.snake.move_snake() {
             return GameOver;
         }
@@ -121,7 +145,7 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use super::{Game, GameCommand, GameResult};
+    use super::{Game, GameCommand, GameState};
     use crate::domain::grid::{Grid, GridCell, Point};
     use crate::domain::grid_geometry::GridGeometry;
     use crate::domain::snake::{Direction, MoveResult, Snake};
@@ -268,7 +292,7 @@ mod tests {
 
         game.apply_command(GameCommand::Move(Direction::Down));
 
-        assert!(matches!(game.tick(), GameResult::Running));
+        assert!(matches!(game.tick(), GameState::Running));
         assert_eq!(game.snake().head(), point(3, 4));
     }
 
@@ -279,7 +303,7 @@ mod tests {
         game.apply_command(GameCommand::Move(Direction::Down));
         game.apply_command(GameCommand::Move(Direction::Left));
 
-        assert!(matches!(game.tick(), GameResult::Running));
+        assert!(matches!(game.tick(), GameState::Running));
         assert_eq!(game.snake().head(), point(2, 3));
     }
 
@@ -287,7 +311,7 @@ mod tests {
     fn tick_returns_game_over_when_snake_hits_wall() {
         let mut game = game_at(point(6, 3), 0);
 
-        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert!(matches!(game.tick(), GameState::GameOver));
         assert_eq!(game.snake().head(), point(7, 3));
     }
 
@@ -295,7 +319,7 @@ mod tests {
     fn tick_returns_game_over_when_snake_moves_out_of_bounds() {
         let mut game = game_at(point(7, 3), 0);
 
-        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert!(matches!(game.tick(), GameState::GameOver));
         assert_eq!(game.snake().head(), point(8, 3));
     }
 
@@ -304,7 +328,7 @@ mod tests {
         let mut game = game_with_probability(0);
         game.spawn_food_at(&point(4, 3));
 
-        assert!(matches!(game.tick(), GameResult::Running));
+        assert!(matches!(game.tick(), GameState::Running));
         assert_eq!(game.score(), 1);
         assert!(!game.food_points().any(|p| *p == point(4, 3)));
         assert_eq!(game.snake().head(), point(4, 3));
@@ -331,7 +355,7 @@ mod tests {
         snake.set_direction(Direction::Up);
         let mut game = Game::new(grid, snake, 0);
 
-        assert!(matches!(game.tick(), GameResult::GameOver));
+        assert!(matches!(game.tick(), GameState::GameOver));
         assert_eq!(game.snake().head(), point(2, 3));
     }
 }

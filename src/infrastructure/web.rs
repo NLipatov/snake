@@ -1,4 +1,4 @@
-use crate::domain::game::{Game, GameCommand, GameResult};
+use crate::domain::game::{Game, GameCommand, GameState};
 use crate::domain::grid::{Grid, Point};
 use crate::domain::grid_geometry::GridGeometry;
 use crate::domain::snake::{Direction, Snake};
@@ -46,7 +46,7 @@ impl WebGame {
     }
 
     pub fn tick(&mut self) -> bool {
-        matches!(self.game.tick(), GameResult::Running)
+        matches!(self.game.tick(), GameState::Running)
     }
 
     pub fn move_up(&mut self) {
