@@ -141,6 +141,9 @@ impl Game {
     pub fn grid(&self) -> &Grid {
         &self.grid
     }
+    pub fn state(&self) -> &GameState {
+        &self.state
+    }
 }
 
 #[cfg(test)]

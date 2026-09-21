@@ -1,4 +1,4 @@
-use crate::domain::game::GameState::GameOver;
+use crate::domain::game::GameState::{self, GameOver, Paused};
 use crate::domain::game::{Game, GameCommand};
 use crate::domain::snake::Direction::{Down, Left, Right, Up};
 use crate::infrastructure::raw_mode_guard::RawModeGuard;
@@ -29,7 +29,10 @@ impl Cli {
         let _rmg = RawModeGuard::new();
         self.renderer.render(&self.game, self.game.score());
         loop {
-            if let Some(command) = self.terminal.wait_for_command_async() {
+            if let Some(command) = match self.game.state() {
+                GameState::Paused => self.terminal.wait_for_command_sync(),
+                _ => self.terminal.wait_for_command_async(),
+            } {
                 match command {
                     TerminalCommand::Escape => {
                         return RunResult::Quit {
@@ -47,7 +50,9 @@ impl Cli {
                 break;
             }
             self.renderer.render(&self.game, self.game.score());
-            std::thread::sleep(Duration::from_millis(115));
+            if self.game.state() != &Paused {
+                std::thread::sleep(Duration::from_millis(115));
+            }
         }
         self.renderer.render(&self.game, self.game.score());
         RunResult::GameOver {
