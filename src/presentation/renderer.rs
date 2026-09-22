@@ -28,7 +28,7 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
-        let footer_row = 2 + ((game.grid().height() + 1) / 2) as usize;
+        let footer_row = 2 + Self::effective_frame_height(game.grid());
         self.move_cursor(out, footer_row, 1);
         out.flush().expect("could not flush stdout");
     }
@@ -70,10 +70,9 @@ impl Renderer {
         self.work_frame = self.displayed_frame.replace(frame);
     }
     fn geometry_changed(&self, grid: &Grid) -> bool {
-        let dimensions = FrameDimensions::from_grid(grid);
-        self.displayed_frame
-            .as_ref()
-            .is_some_and(|pf| !pf.has_dimensions(&dimensions))
+        self.displayed_frame.as_ref().is_some_and(|f| {
+            !f.has_dimensions(grid.width() as usize, Self::effective_frame_height(grid))
+        })
     }
     fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
         let geometry_changed = self.geometry_changed(grid);
@@ -81,10 +80,16 @@ impl Renderer {
             self.displayed_frame = None;
         }
         if self.work_frame.is_none() || geometry_changed {
-            self.work_frame =
-                Option::from(Frame::from_dimensions(&FrameDimensions::from_grid(grid)))
+            self.work_frame = Option::from(Frame::new(
+                grid.width() as usize,
+                Self::effective_frame_height(grid),
+            ))
         }
         self.work_frame.take().unwrap()
+    }
+    fn effective_frame_height(grid: &Grid) -> usize {
+        // frame row is splitted to 2 halves, which effectively make it 2 rows in a row.
+        ((grid.height() + 1) / 2) as usize
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -134,19 +139,6 @@ struct Color {
     bg: &'static str,
 }
 
-struct FrameDimensions {
-    width: usize,
-    height: usize,
-}
-
-impl FrameDimensions {
-    pub fn from_grid(grid: &Grid) -> FrameDimensions {
-        let width = grid.width() as usize;
-        let height = ((grid.height() + 1) / 2) as usize;
-        FrameDimensions { width, height }
-    }
-}
-
 struct Frame {
     width: usize,
     height: usize,
@@ -154,18 +146,18 @@ struct Frame {
 }
 
 impl Frame {
-    pub fn from_dimensions(frame_dimensions: &FrameDimensions) -> Frame {
+    pub fn new(width: usize, height: usize) -> Frame {
         Frame {
-            width: frame_dimensions.width,
-            height: frame_dimensions.height,
-            cells: vec![TerminalCell::empty(); frame_dimensions.width * frame_dimensions.height],
+            width,
+            height,
+            cells: vec![TerminalCell::empty(); width * height],
         }
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
     }
-    pub fn has_dimensions(&self, frame_dimensions: &FrameDimensions) -> bool {
-        self.height == frame_dimensions.height && self.width == frame_dimensions.width
+    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
+        self.height == height && self.width == width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
