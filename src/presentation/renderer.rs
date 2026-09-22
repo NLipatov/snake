@@ -40,8 +40,7 @@ impl Renderer {
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
         let mut frame = self.prepare_work_frame(grid);
-        let mut y = 0;
-        while y < grid.height() {
+        for y in (0..grid.height()).step_by(2) {
             let term_y = (y / 2) as usize;
             for x in 0..grid.width() {
                 let top_point = Point::new(x, y);
@@ -65,7 +64,6 @@ impl Renderer {
                     self.render_cell(out, frame.get(x as usize, term_y));
                 }
             }
-            y += 2;
         }
         self.work_frame = self.displayed_frame.replace(frame);
     }
