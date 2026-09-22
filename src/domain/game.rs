@@ -160,10 +160,7 @@ mod tests {
     fn game_at(starting_point: Point, food_spawn_attempt_probability: i32) -> Game {
         let geometry = GridGeometry::new(8, 8);
         let grid = Grid::new(geometry);
-        let snake = match Snake::new(starting_point, geometry) {
-            Ok(snake) => snake,
-            Err(e) => panic!("{}", e),
-        };
+        let snake = Snake::new(starting_point, geometry).expect("snake should fit in grid");
         Game::new(grid, snake, food_spawn_attempt_probability)
     }
 
@@ -308,6 +305,101 @@ mod tests {
 
         assert!(matches!(game.tick(), GameState::Running));
         assert_eq!(game.snake().head(), point(2, 3));
+    }
+
+    #[test]
+    fn paused_game_preserves_snake_food_and_score_until_resumed() {
+        let mut game = game_with_probability(0);
+        game.snake.grow();
+        game.spawn_food_at(&point(4, 3));
+        let body: Vec<_> = game.snake_points().copied().collect();
+
+        game.apply_command(GameCommand::TogglePause);
+        assert!(matches!(game.state(), GameState::Paused));
+
+        for direction in [
+            Direction::Right,
+            Direction::Up,
+            Direction::Left,
+            Direction::Down,
+        ] {
+            game.apply_command(GameCommand::Move(direction));
+            assert!(matches!(game.tick(), GameState::Paused));
+            assert_eq!(game.snake_points().copied().collect::<Vec<_>>(), body);
+            assert_eq!(
+                game.food_points().copied().collect::<Vec<_>>(),
+                vec![point(4, 3)]
+            );
+            assert_eq!(game.score(), 1);
+        }
+
+        game.apply_command(GameCommand::TogglePause);
+        assert!(matches!(game.state(), GameState::Running));
+        assert!(matches!(game.tick(), GameState::Running));
+        assert_eq!(game.snake().head(), point(4, 3));
+        assert_eq!(game.snake_len(), 2);
+        assert_eq!(game.score(), 2);
+        assert_eq!(game.food_len(), 0);
+    }
+
+    #[test]
+    fn food_spawn_attempt_on_a_full_grid_preserves_existing_food() {
+        let mut game = game_with_probability(100);
+        game.snake.grow();
+        for y in 0..game.grid().height() {
+            for x in 0..game.grid().width() {
+                game.spawn_food_at(&point(x, y));
+            }
+        }
+        let mut expected_food = game.food_points.clone();
+        assert!(expected_food.remove(&point(4, 3)));
+
+        assert!(matches!(game.tick(), GameState::Running));
+
+        // Growth keeps the old head occupied. Every remaining cell is a wall,
+        // snake segment, or existing food, so any random spawn must be a no-op.
+        assert_eq!(game.food_points, expected_food);
+        assert_eq!(game.snake().head(), point(4, 3));
+        assert_eq!(game.snake_len(), 2);
+        assert_eq!(game.score(), 2);
+    }
+
+    #[test]
+    fn game_over_ignores_commands_and_further_ticks() {
+        let mut game = game_at(point(6, 3), 100);
+        game.spawn_food_at(&point(4, 4));
+        game.snake.grow();
+        assert!(matches!(game.tick(), GameState::GameOver));
+        let body: Vec<_> = game.snake_points().copied().collect();
+
+        for command in [
+            GameCommand::TogglePause,
+            GameCommand::Move(Direction::Down),
+            GameCommand::Move(Direction::Left),
+            GameCommand::Move(Direction::Up),
+            GameCommand::Move(Direction::Right),
+        ] {
+            game.apply_command(command);
+            assert!(matches!(game.state(), GameState::GameOver));
+            assert!(matches!(game.tick(), GameState::GameOver));
+            assert_eq!(game.snake_points().copied().collect::<Vec<_>>(), body);
+            assert_eq!(
+                game.food_points().copied().collect::<Vec<_>>(),
+                vec![point(4, 4)]
+            );
+            assert_eq!(game.score(), 1);
+        }
+    }
+
+    #[test]
+    fn spawn_food_at_ignores_points_outside_grid() {
+        let mut game = game_with_probability(0);
+
+        for point in [point(-1, 3), point(8, 3), point(3, -1), point(3, 8)] {
+            game.spawn_food_at(&point);
+        }
+
+        assert_eq!(game.food_len(), 0);
     }
 
     #[test]

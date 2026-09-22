@@ -397,6 +397,105 @@ mod tests {
     }
 
     #[test]
+    fn paused_label_is_centered_and_its_cells_are_restored_after_resuming() {
+        use crate::domain::game::GameCommand;
+
+        let mut renderer = Renderer::new();
+        let mut game = game_with_geometry(8, 8, point(3, 2));
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+
+        game.apply_command(GameCommand::TogglePause);
+        out.clear();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;1H",
+                super::FG_WHITE
+            )
+        );
+
+        // Render twice while paused to exercise both reused frame buffers.
+        renderer.render_to(&mut Vec::new(), &game, 0);
+        game.apply_command(GameCommand::TogglePause);
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H \x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[3;5H \x1B[3;6H \x1B[3;7H \x1B[6;1H"
+            )
+        );
+
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;1H")
+        );
+    }
+
+    #[test]
+    fn paused_label_is_omitted_when_grid_is_too_narrow() {
+        use crate::domain::game::GameCommand;
+
+        let mut renderer = Renderer::new();
+        let mut game = game_at(point(2, 2));
+        let mut running = Vec::new();
+        renderer.render_to(&mut running, &game, 0);
+
+        game.apply_command(GameCommand::TogglePause);
+        let mut paused = Vec::new();
+        Renderer::new().render_to(&mut paused, &game, 0);
+
+        assert_eq!(paused, running);
+    }
+
+    #[test]
+    fn resizing_clears_and_redraws_the_entire_grid() {
+        let mut renderer = Renderer::new();
+
+        for (width, height) in [(5, 5), (8, 5), (8, 8), (5, 5)] {
+            let game = game_with_geometry(width, height, point(2, 2));
+            let mut resized = Vec::new();
+            renderer.render_to(&mut resized, &game, 0);
+            let mut fresh = Vec::new();
+            Renderer::new().render_to(&mut fresh, &game, 0);
+            assert_eq!(resized, fresh, "resizing to {width}x{height}");
+
+            let mut unchanged = Vec::new();
+            renderer.render_to(&mut unchanged, &game, 0);
+            let output = String::from_utf8(unchanged).unwrap();
+            assert!(!output.contains("\x1B[2J"));
+            assert!(!output.contains('█'));
+        }
+    }
+
+    #[test]
+    fn mixed_cells_preserve_top_and_bottom_colors() {
+        use super::TerminalCell;
+
+        let renderer = Renderer::new();
+        for (top, bottom, expected) in [
+            (
+                RenderCell::Food,
+                RenderCell::Snake,
+                format!("{FG_RED}{BG_GREEN}▀{RESET}"),
+            ),
+            (
+                RenderCell::Snake,
+                RenderCell::Food,
+                format!("{FG_GREEN}{BG_RED}▀{RESET}"),
+            ),
+        ] {
+            let mut out = Vec::new();
+            renderer.render_cell(&mut out, &TerminalCell::new(top, bottom));
+            assert_eq!(String::from_utf8(out).unwrap(), expected);
+        }
+    }
+
+    #[test]
     fn render_cell_reads_snake_wall_and_empty_from_game_and_grid() {
         let game = game_at(Point::new(1, 1));
         let grid = game.grid();
