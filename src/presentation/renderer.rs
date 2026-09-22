@@ -3,9 +3,9 @@ use crate::domain::game::GameState::Paused;
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
 
-// Used to convert 0-based frame columns to 1-based terminal columns.
-// The top-left terminal cell is (1, 1); The top-left frame cell is (0, 0)
-const X_OFFSET: usize = 1;
+// Terminal coordinates are 1-based. Leave column 1 blank so cell backgrounds
+// do not extend into the terminal's left margin.
+const X_OFFSET: usize = 2;
 const Y_OFFSET: usize = 1;
 const HEADER_SIZE: usize = 1;
 // SCALE shows how many rows are displayed per terminal row.
@@ -302,7 +302,7 @@ mod tests {
         let output = String::from_utf8(out).expect("render should be utf-8");
 
         assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}7{RESET}")));
-        assert!(output.contains("\x1B[2;1H"));
+        assert!(output.contains("\x1B[2;2H"));
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
-            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
+            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
         );
     }
 
@@ -332,8 +332,8 @@ mod tests {
         assert!(output.contains("█"));
         assert!(output.contains("▀"));
         assert!(output.contains("▄"));
-        assert!(output.contains("\x1B[2;1H"));
-        assert!(output.contains("\x1B[3;3H"));
+        assert!(output.contains("\x1B[2;2H"));
+        assert!(output.contains("\x1B[3;4H"));
         assert!(!output.contains("\r\n"));
     }
 
@@ -347,11 +347,11 @@ mod tests {
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
-        assert!(output.starts_with("\x1B[2J\x1B[1;1H"));
+        assert!(output.starts_with("\x1B[2J\x1B[1;2H"));
         assert_eq!(output.matches("\x1B[2J").count(), 1);
         assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
-        assert!(output.contains("\x1B[2;1H"));
-        assert!(output.ends_with("\x1B[5;1H"));
+        assert!(output.contains("\x1B[2;2H"));
+        assert!(output.ends_with("\x1B[5;2H"));
         assert!(output.contains("█"));
     }
 
@@ -370,7 +370,7 @@ mod tests {
         assert!(!output.contains("\x1B[2J"));
         assert_eq!(
             output,
-            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;1H")
+            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;2H")
         );
     }
 
@@ -391,7 +391,7 @@ mod tests {
         assert_eq!(
             output,
             format!(
-                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[5;1H"
+                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_GREEN}▀{RESET}\x1B[5;2H"
             )
         );
     }
@@ -411,7 +411,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;1H",
+                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;2H",
                 super::FG_WHITE
             )
         );
@@ -424,7 +424,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H \x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[3;5H \x1B[3;6H \x1B[3;7H \x1B[6;1H"
+                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
             )
         );
 
@@ -432,7 +432,7 @@ mod tests {
         renderer.render_to(&mut out, &game, 0);
         assert_eq!(
             String::from_utf8(out).unwrap(),
-            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;1H")
+            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
         );
     }
 
