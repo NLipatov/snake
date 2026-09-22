@@ -1,6 +1,16 @@
 use crate::domain::game::Game;
+use crate::domain::game::GameState::Paused;
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
+
+// Used to convert 0-based frame columns to 1-based terminal columns.
+// The top-left terminal cell is (1, 1); The top-left frame cell is (0, 0)
+const X_OFFSET: usize = 1;
+const Y_OFFSET: usize = 1;
+const HEADER_SIZE: usize = 1;
+// SCALE shows how many rows are displayed per terminal row.
+// Each terminal row contains to halves - top and bottom.
+const SCALE: i32 = 2;
 
 #[derive(Default)]
 pub struct Renderer {
@@ -28,27 +38,49 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
-        let footer_row = 2 + ((game.grid().height() + 1) / 2) as usize;
-        self.move_cursor(out, footer_row, 1);
+        self.render_state(out, game);
+        let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
+        self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
     }
+    fn render_state<W: Write>(&mut self, out: &mut W, game: &Game) {
+        if game.state() == &Paused {
+            let label = "Paused";
+            // is there a space to put a label?
+            if (game.grid().width() as usize) < label.len() {
+                return;
+            }
+            let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+            let x = X_OFFSET + (game.grid().width() as usize - label.len()) / 2;
+            self.move_cursor(out, y, x);
+            self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, label);
+            if let Some(frame) = self.displayed_frame.as_mut() {
+                for i in 0..label.len() {
+                    frame.set(
+                        x - X_OFFSET + i,
+                        y - Y_OFFSET - HEADER_SIZE,
+                        TerminalCell::new(RenderCell::Text, RenderCell::Text),
+                    );
+                }
+            }
+        }
+    }
     fn render_header<W: Write>(&self, out: &mut W, score: usize) {
-        self.move_cursor(out, 1, 1);
+        // Terminal coordinates are 1-based; the top-left cell is (1, 1)
+        self.move_cursor(out, Y_OFFSET, X_OFFSET);
         write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
             .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
         let mut frame = self.prepare_work_frame(grid);
-        let mut y = 0;
-        while y < grid.height() {
-            let term_y = (y / 2) as usize;
+        // each row contains two halves - top and bottom
+        for y in (0..grid.height()).step_by(SCALE as usize) {
+            let term_y = (y / SCALE) as usize;
             for x in 0..grid.width() {
-                let top_point = Point::new(x, y);
-                let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(grid, game, &top_point);
+                let top = RenderCell::new(grid, game, &Point::new(x, y));
                 let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, game, &bottom_point)
+                    RenderCell::new(grid, game, &Point::new(x, y + 1))
                 } else {
                     RenderCell::Empty
                 };
@@ -59,21 +91,19 @@ impl Renderer {
                         prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
                     }
                 } {
-                    let row = 2 + term_y;
-                    let col = 1 + x as usize;
+                    let row = Y_OFFSET + HEADER_SIZE + term_y;
+                    let col = X_OFFSET + x as usize;
                     self.move_cursor(out, row, col);
                     self.render_cell(out, frame.get(x as usize, term_y));
                 }
             }
-            y += 2;
         }
         self.work_frame = self.displayed_frame.replace(frame);
     }
     fn geometry_changed(&self, grid: &Grid) -> bool {
-        let dimensions = FrameDimensions::from_grid(grid);
-        self.displayed_frame
-            .as_ref()
-            .is_some_and(|pf| !pf.has_dimensions(&dimensions))
+        self.displayed_frame.as_ref().is_some_and(|f| {
+            !f.has_dimensions(grid.width() as usize, Self::effective_frame_height(grid))
+        })
     }
     fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
         let geometry_changed = self.geometry_changed(grid);
@@ -81,10 +111,16 @@ impl Renderer {
             self.displayed_frame = None;
         }
         if self.work_frame.is_none() || geometry_changed {
-            self.work_frame =
-                Option::from(Frame::from_dimensions(&FrameDimensions::from_grid(grid)))
+            self.work_frame = Option::from(Frame::new(
+                grid.width() as usize,
+                Self::effective_frame_height(grid),
+            ))
         }
         self.work_frame.take().unwrap()
+    }
+    fn effective_frame_height(grid: &Grid) -> usize {
+        // frame row is splitted to 2 halves, which effectively make it 2 rows in a row.
+        ((grid.height() + SCALE - 1) / SCALE) as usize
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -114,11 +150,15 @@ impl Renderer {
     fn render_fullbox<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}█{}", color, RESET).expect("could not write full box")
     }
+    fn render_text<W: Write>(&self, out: &mut W, fg: &str, bg: &str, text: &str) {
+        write!(out, "{bg}{fg}{text}{RESET}").expect("could not write text")
+    }
     fn move_cursor<W: Write>(&self, out: &mut W, row: usize, col: usize) {
         write!(out, "\x1B[{};{}H", row, col).expect("could not move cursor");
     }
 }
 
+const FG_WHITE: &str = "\x1b[37m";
 const FG_DIM: &str = "\x1b[2m";
 const FG_RED: &str = "\x1b[31m";
 const FG_GREEN: &str = "\x1b[32m";
@@ -134,19 +174,6 @@ struct Color {
     bg: &'static str,
 }
 
-struct FrameDimensions {
-    width: usize,
-    height: usize,
-}
-
-impl FrameDimensions {
-    pub fn from_grid(grid: &Grid) -> FrameDimensions {
-        let width = grid.width() as usize;
-        let height = ((grid.height() + 1) / 2) as usize;
-        FrameDimensions { width, height }
-    }
-}
-
 struct Frame {
     width: usize,
     height: usize,
@@ -154,18 +181,18 @@ struct Frame {
 }
 
 impl Frame {
-    pub fn from_dimensions(frame_dimensions: &FrameDimensions) -> Frame {
+    pub fn new(width: usize, height: usize) -> Frame {
         Frame {
-            width: frame_dimensions.width,
-            height: frame_dimensions.height,
-            cells: vec![TerminalCell::empty(); frame_dimensions.width * frame_dimensions.height],
+            width,
+            height,
+            cells: vec![TerminalCell::empty(); width * height],
         }
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
     }
-    pub fn has_dimensions(&self, frame_dimensions: &FrameDimensions) -> bool {
-        self.height == frame_dimensions.height && self.width == frame_dimensions.width
+    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
+        self.height == height && self.width == width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
@@ -199,6 +226,7 @@ enum RenderCell {
     Food,
     Wall,
     Snake,
+    Text,
 }
 
 impl RenderCell {
@@ -228,6 +256,10 @@ impl RenderCell {
             RenderCell::Snake => Some(Color {
                 fg: FG_GREEN,
                 bg: BG_GREEN,
+            }),
+            RenderCell::Text => Some(Color {
+                fg: FG_WHITE,
+                bg: BG_BRIGHT_BLACK,
             }),
         }
     }
@@ -362,6 +394,105 @@ mod tests {
                 "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[5;1H"
             )
         );
+    }
+
+    #[test]
+    fn paused_label_is_centered_and_its_cells_are_restored_after_resuming() {
+        use crate::domain::game::GameCommand;
+
+        let mut renderer = Renderer::new();
+        let mut game = game_with_geometry(8, 8, point(3, 2));
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+
+        game.apply_command(GameCommand::TogglePause);
+        out.clear();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;1H",
+                super::FG_WHITE
+            )
+        );
+
+        // Render twice while paused to exercise both reused frame buffers.
+        renderer.render_to(&mut Vec::new(), &game, 0);
+        game.apply_command(GameCommand::TogglePause);
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!(
+                "\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;2H \x1B[3;3H \x1B[3;4H{FG_GREEN}▀{RESET}\x1B[3;5H \x1B[3;6H \x1B[3;7H \x1B[6;1H"
+            )
+        );
+
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, 0);
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!("\x1B[1;1H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;1H")
+        );
+    }
+
+    #[test]
+    fn paused_label_is_omitted_when_grid_is_too_narrow() {
+        use crate::domain::game::GameCommand;
+
+        let mut renderer = Renderer::new();
+        let mut game = game_at(point(2, 2));
+        let mut running = Vec::new();
+        renderer.render_to(&mut running, &game, 0);
+
+        game.apply_command(GameCommand::TogglePause);
+        let mut paused = Vec::new();
+        Renderer::new().render_to(&mut paused, &game, 0);
+
+        assert_eq!(paused, running);
+    }
+
+    #[test]
+    fn resizing_clears_and_redraws_the_entire_grid() {
+        let mut renderer = Renderer::new();
+
+        for (width, height) in [(5, 5), (8, 5), (8, 8), (5, 5)] {
+            let game = game_with_geometry(width, height, point(2, 2));
+            let mut resized = Vec::new();
+            renderer.render_to(&mut resized, &game, 0);
+            let mut fresh = Vec::new();
+            Renderer::new().render_to(&mut fresh, &game, 0);
+            assert_eq!(resized, fresh, "resizing to {width}x{height}");
+
+            let mut unchanged = Vec::new();
+            renderer.render_to(&mut unchanged, &game, 0);
+            let output = String::from_utf8(unchanged).unwrap();
+            assert!(!output.contains("\x1B[2J"));
+            assert!(!output.contains('█'));
+        }
+    }
+
+    #[test]
+    fn mixed_cells_preserve_top_and_bottom_colors() {
+        use super::TerminalCell;
+
+        let renderer = Renderer::new();
+        for (top, bottom, expected) in [
+            (
+                RenderCell::Food,
+                RenderCell::Snake,
+                format!("{FG_RED}{BG_GREEN}▀{RESET}"),
+            ),
+            (
+                RenderCell::Snake,
+                RenderCell::Food,
+                format!("{FG_GREEN}{BG_RED}▀{RESET}"),
+            ),
+        ] {
+            let mut out = Vec::new();
+            renderer.render_cell(&mut out, &TerminalCell::new(top, bottom));
+            assert_eq!(String::from_utf8(out).unwrap(), expected);
+        }
     }
 
     #[test]

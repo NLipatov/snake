@@ -1,4 +1,9 @@
 /target
 .idea
 /web/pkg
+
+# CI generated assets
 /web/og-image.png
+
+# LSP Tools
+/.serena
