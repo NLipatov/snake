@@ -1,4 +1,5 @@
 use crate::domain::game::Game;
+use crate::domain::game::GameState::Paused;
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
 
@@ -37,9 +38,32 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
+        self.render_state(out, game);
         let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
+    }
+    fn render_state<W: Write>(&mut self, out: &mut W, game: &Game) {
+        if game.state() == &Paused {
+            let label = "Paused";
+            // is there a space to put a label?
+            if (game.grid().width() as usize) < label.len() {
+                return;
+            }
+            let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+            let x = X_OFFSET + (game.grid().width() as usize - label.len()) / 2;
+            self.move_cursor(out, y, x);
+            self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, label);
+            if let Some(frame) = self.displayed_frame.as_mut() {
+                for i in 0..label.len() {
+                    frame.set(
+                        x - X_OFFSET + i,
+                        y - Y_OFFSET - HEADER_SIZE,
+                        TerminalCell::new(RenderCell::Text, RenderCell::Text),
+                    );
+                }
+            }
+        }
     }
     fn render_header<W: Write>(&self, out: &mut W, score: usize) {
         // Terminal coordinates are 1-based; the top-left cell is (1, 1)
@@ -126,11 +150,15 @@ impl Renderer {
     fn render_fullbox<W: Write>(&self, out: &mut W, color: &str) {
         write!(out, "{}█{}", color, RESET).expect("could not write full box")
     }
+    fn render_text<W: Write>(&self, out: &mut W, fg: &str, bg: &str, text: &str) {
+        write!(out, "{bg}{fg}{text}{RESET}").expect("could not write text")
+    }
     fn move_cursor<W: Write>(&self, out: &mut W, row: usize, col: usize) {
         write!(out, "\x1B[{};{}H", row, col).expect("could not move cursor");
     }
 }
 
+const FG_WHITE: &str = "\x1b[37m";
 const FG_DIM: &str = "\x1b[2m";
 const FG_RED: &str = "\x1b[31m";
 const FG_GREEN: &str = "\x1b[32m";
@@ -198,6 +226,7 @@ enum RenderCell {
     Food,
     Wall,
     Snake,
+    Text,
 }
 
 impl RenderCell {
@@ -227,6 +256,10 @@ impl RenderCell {
             RenderCell::Snake => Some(Color {
                 fg: FG_GREEN,
                 bg: BG_GREEN,
+            }),
+            RenderCell::Text => Some(Color {
+                fg: FG_WHITE,
+                bg: BG_BRIGHT_BLACK,
             }),
         }
     }
