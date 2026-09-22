@@ -40,14 +40,13 @@ impl Renderer {
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
         let mut frame = self.prepare_work_frame(grid);
+        // each row contains to halves - top and bottom
         for y in (0..grid.height()).step_by(2) {
             let term_y = (y / 2) as usize;
             for x in 0..grid.width() {
-                let top_point = Point::new(x, y);
-                let bottom_point = Point::new(x, y + 1);
-                let top = RenderCell::new(grid, game, &top_point);
+                let top = RenderCell::new(grid, game, &Point::new(x, y));
                 let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, game, &bottom_point)
+                    RenderCell::new(grid, game, &Point::new(x, y + 1))
                 } else {
                     RenderCell::Empty
                 };
