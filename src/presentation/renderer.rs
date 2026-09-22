@@ -2,6 +2,15 @@ use crate::domain::game::Game;
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
 
+// Used to convert 0-based frame columns to 1-based terminal columns.
+// The top-left terminal cell is (1, 1); The top-left frame cell is (0, 0)
+const X_OFFSET: usize = 1;
+const Y_OFFSET: usize = 1;
+const HEADER_SIZE: usize = 1;
+// SCALE shows how many rows are displayed per terminal row.
+// Each terminal row contains to halves - top and bottom.
+const SCALE: i32 = 2;
+
 #[derive(Default)]
 pub struct Renderer {
     work_frame: Option<Frame>,
@@ -28,21 +37,22 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
-        let footer_row = 2 + Self::effective_frame_height(game.grid());
-        self.move_cursor(out, footer_row, 1);
+        let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
+        self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
     }
     fn render_header<W: Write>(&self, out: &mut W, score: usize) {
-        self.move_cursor(out, 1, 1);
+        // Terminal coordinates are 1-based; the top-left cell is (1, 1)
+        self.move_cursor(out, Y_OFFSET, X_OFFSET);
         write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
             .expect("could not write header");
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
         let mut frame = self.prepare_work_frame(grid);
-        // each row contains to halves - top and bottom
-        for y in (0..grid.height()).step_by(2) {
-            let term_y = (y / 2) as usize;
+        // each row contains two halves - top and bottom
+        for y in (0..grid.height()).step_by(SCALE as usize) {
+            let term_y = (y / SCALE) as usize;
             for x in 0..grid.width() {
                 let top = RenderCell::new(grid, game, &Point::new(x, y));
                 let bottom = if y + 1 < grid.height() {
@@ -57,8 +67,8 @@ impl Renderer {
                         prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
                     }
                 } {
-                    let row = 2 + term_y;
-                    let col = 1 + x as usize;
+                    let row = Y_OFFSET + HEADER_SIZE + term_y;
+                    let col = X_OFFSET + x as usize;
                     self.move_cursor(out, row, col);
                     self.render_cell(out, frame.get(x as usize, term_y));
                 }
@@ -86,7 +96,7 @@ impl Renderer {
     }
     fn effective_frame_height(grid: &Grid) -> usize {
         // frame row is splitted to 2 halves, which effectively make it 2 rows in a row.
-        ((grid.height() + 1) / 2) as usize
+        ((grid.height() + SCALE - 1) / SCALE) as usize
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
