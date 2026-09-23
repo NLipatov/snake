@@ -83,15 +83,13 @@ impl Game {
             self.snake.grow();
             self.food_points.remove(&head);
         }
-        if self.should_attempt_food_spawn() {
-            self.attempt_food_spawn();
-        }
+        self.attempt_random_food_spawn();
         Running
     }
-    fn should_attempt_food_spawn(&mut self) -> bool {
-        self.rng.random_range(0..100) < self.food_spawn_attempt_probability
-    }
-    fn attempt_food_spawn(&mut self) {
+    fn attempt_random_food_spawn(&mut self) {
+        if self.rng.random_range(0..100) >= self.food_spawn_attempt_probability {
+            return;
+        }
         let max_x = self.grid.width();
         let max_y = self.grid.height();
         let point = Point::new(
@@ -169,21 +167,29 @@ mod tests {
     }
 
     #[test]
-    fn should_attempt_food_spawn_is_never_true_at_zero_percent() {
+    fn random_food_spawn_never_places_food_at_zero_percent() {
         let mut game = game_with_probability(0);
 
-        for _ in 0..100 {
-            assert!(!game.should_attempt_food_spawn());
+        for _ in 0..10_000 {
+            game.attempt_random_food_spawn();
         }
+
+        assert_eq!(game.food_len(), 0);
     }
 
     #[test]
-    fn should_attempt_food_spawn_is_always_true_at_hundred_percent() {
+    fn random_food_spawn_places_food_at_hundred_percent() {
         let mut game = game_with_probability(100);
 
-        for _ in 0..100 {
-            assert!(game.should_attempt_food_spawn());
+        // An attempt can pick a wall or the snake, so allow repeated attempts.
+        for _ in 0..1_000 {
+            game.attempt_random_food_spawn();
+            if game.food_len() > 0 {
+                return;
+            }
         }
+
+        panic!("food should spawn on an empty cell at 100% probability");
     }
 
     #[test]
