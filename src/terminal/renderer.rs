@@ -162,9 +162,11 @@ const FG_WHITE: &str = "\x1b[37m";
 const FG_DIM: &str = "\x1b[2m";
 const FG_RED: &str = "\x1b[31m";
 const FG_GREEN: &str = "\x1b[32m";
+const FG_BRIGHT_GREEN: &str = "\x1b[92m";
 const FG_BRIGHT_BLACK: &str = "\x1b[90m";
 const BG_RED: &str = "\x1b[41m";
 const BG_GREEN: &str = "\x1b[42m";
+const BG_BRIGHT_GREEN: &str = "\x1b[102m";
 const BG_BRIGHT_BLACK: &str = "\x1b[100m";
 const RESET: &str = "\x1b[0m";
 
@@ -225,14 +227,18 @@ enum RenderCell {
     Empty,
     Food,
     Wall,
-    Snake,
+    SnakeBody,
+    SnakeHead,
     Text,
 }
 
 impl RenderCell {
     fn new(grid: &Grid, game: &Game, at: &Point) -> RenderCell {
+        if &game.snake().head() == at {
+            return RenderCell::SnakeHead;
+        }
         if game.snake_at(at) {
-            return RenderCell::Snake;
+            return RenderCell::SnakeBody;
         }
         if game.food_at(at) {
             return RenderCell::Food;
@@ -253,9 +259,13 @@ impl RenderCell {
                 fg: FG_BRIGHT_BLACK,
                 bg: BG_BRIGHT_BLACK,
             }),
-            RenderCell::Snake => Some(Color {
+            RenderCell::SnakeBody => Some(Color {
                 fg: FG_GREEN,
                 bg: BG_GREEN,
+            }),
+            RenderCell::SnakeHead => Some(Color {
+                fg: FG_BRIGHT_GREEN,
+                bg: BG_BRIGHT_GREEN,
             }),
             RenderCell::Text => Some(Color {
                 fg: FG_WHITE,
@@ -480,11 +490,11 @@ mod tests {
         for (top, bottom, expected) in [
             (
                 RenderCell::Food,
-                RenderCell::Snake,
+                RenderCell::SnakeBody,
                 format!("{FG_RED}{BG_GREEN}▀{RESET}"),
             ),
             (
-                RenderCell::Snake,
+                RenderCell::SnakeBody,
                 RenderCell::Food,
                 format!("{FG_GREEN}{BG_RED}▀{RESET}"),
             ),
@@ -502,7 +512,7 @@ mod tests {
 
         assert!(matches!(
             RenderCell::new(grid, &game, &point(1, 1)),
-            RenderCell::Snake
+            RenderCell::SnakeBody
         ));
         assert!(matches!(
             RenderCell::new(grid, &game, &point(0, 0)),
@@ -524,7 +534,7 @@ mod tests {
             })
         );
         assert_eq!(
-            RenderCell::Snake.to_color(),
+            RenderCell::SnakeBody.to_color(),
             Some(Color {
                 fg: FG_GREEN,
                 bg: BG_GREEN,
