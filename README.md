@@ -33,8 +33,7 @@ It comes in 2 flavours:
 
 Download a prebuilt binary for your platform. No Rust toolchain is required.
 
-Linux `*-musl` binaries are statically linked and do not require glibc.
-Older `*-gnu` releases require glibc 2.39 or newer.
+Linux binaries are statically linked with musl and do not require glibc.
 
 On Linux and macOS, the commands install to `~/.local/bin`. Run `~/.local/bin/snake`,
 or `snake` if that directory is already in your `PATH`.
