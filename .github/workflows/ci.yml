@@ -42,3 +42,30 @@ jobs:
           files: lcov.info
           flags: unittests
           fail_ci_if_error: true
+
+  musl:
+    name: Test ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Run tests
+        run: cargo test --locked --target "${{ matrix.target }}"
+
+      - name: Build release binary
+        run: cargo build --locked --release --bin snake --target "${{ matrix.target }}"
