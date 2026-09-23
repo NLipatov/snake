@@ -1,9 +1,12 @@
 use crate::domain::game::GameState::{self, GameOver, Paused};
 use crate::domain::game::{Game, GameCommand};
 use crate::domain::snake::Direction::{Down, Left, Right, Up};
-use crate::infrastructure::raw_mode_guard::RawModeGuard;
 use crate::infrastructure::terminal::{Terminal, TerminalCommand};
 use crate::presentation::renderer::Renderer;
+use crossterm::cursor::{Hide, Show};
+use crossterm::execute;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use std::io::stdout;
 use std::time::Duration;
 
 pub enum RunResult {
@@ -58,5 +61,29 @@ impl Cli {
         RunResult::GameOver {
             score: self.game.score(),
         }
+    }
+}
+
+// RawModeGuard is a RAII struct.
+// Constructor calls enable_raw_mode(),
+// Drop calls disable_raw_mode().
+struct RawModeGuard {}
+
+impl RawModeGuard {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> RawModeGuard {
+        enable_raw_mode().expect("could not enable raw mode");
+        if let Err(err) = execute!(stdout(), Hide) {
+            let _ = disable_raw_mode();
+            panic!("could not hide cursor: {err}");
+        }
+        RawModeGuard {}
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let _ = execute!(stdout(), Show);
     }
 }
