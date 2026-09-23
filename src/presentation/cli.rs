@@ -70,8 +70,7 @@ impl Cli {
 struct RawModeGuard {}
 
 impl RawModeGuard {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> RawModeGuard {
+    fn new() -> RawModeGuard {
         enable_raw_mode().expect("could not enable raw mode");
         if let Err(err) = execute!(stdout(), Hide) {
             let _ = disable_raw_mode();
