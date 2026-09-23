@@ -3,6 +3,9 @@ use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use std::io::stdout;
 
+// RawModeGuard is a RAII struct.
+// Constructor calls enable_raw_mode(),
+// Drop calls disable_raw_mode().
 pub struct RawModeGuard {}
 
 impl RawModeGuard {
