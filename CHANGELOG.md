@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/NLipatov/snake/compare/v0.1.6...v0.1.7) - 2026-09-23
+
+### Fixed
+
+- leave a blank column before the terminal grid ([#24](https://github.com/NLipatov/snake/pull/24))
+
+### Other
+
+- Feat/snake head color ([#27](https://github.com/NLipatov/snake/pull/27))
+- simplify module structure ([#25](https://github.com/NLipatov/snake/pull/25))
+
 ## [0.1.6](https://github.com/NLipatov/snake/compare/v0.1.5...v0.1.6) - 2026-09-22
 
 ### Added
