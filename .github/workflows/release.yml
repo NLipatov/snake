@@ -90,11 +90,11 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             archive_ext: tar.gz
             bin_name: snake
           - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
             archive_ext: tar.gz
             bin_name: snake
           - runner: windows-2025
@@ -130,7 +130,7 @@ jobs:
 
       - name: Build release binary
         shell: bash
-        run: cargo build --release --target "${{ matrix.target }}"
+        run: cargo build --locked --release --bin snake --target "${{ matrix.target }}"
 
       - name: Package release archive on Unix
         if: runner.os != 'Windows'

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 960" role="img" aria-labelledby="title desc">
+  <title id="title">Snake in a retro terminal</title>
+  <desc id="desc">Illustration of terminal gameplay on a beige CRT monitor: a 32 by 32 board with gray walls, a green snake with a bright green head, red food, and a score of 32.</desc>
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#e0d5bb"/>
+      <stop offset=".48" stop-color="#bdb095"/>
+      <stop offset="1" stop-color="#a49479"/>
+    </linearGradient>
+    <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#756953"/>
+      <stop offset=".3" stop-color="#302e24"/>
+      <stop offset=".8" stop-color="#22271e"/>
+      <stop offset="1" stop-color="#e0d1af"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="48%" cy="42%" r="72%">
+      <stop stop-color="#101b14"/>
+      <stop offset=".7" stop-color="#09120d"/>
+      <stop offset="1" stop-color="#040907"/>
+    </radialGradient>
+    <linearGradient id="reflection" x1="0" y1="0" x2=".4" y2="1">
+      <stop stop-color="#e1ffe7" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#e1ffe7" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0 .5H4" stroke="#000" stroke-opacity=".14"/>
+    </pattern>
+    <pattern id="vents" width="12" height="24" patternUnits="userSpaceOnUse">
+      <rect x="2" y="2" width="4" height="20" rx="2" fill="#746b56"/>
+      <path d="M7 4V20" stroke="#e4d6b6" stroke-opacity=".6"/>
+    </pattern>
+    <filter id="phosphor" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation=".1" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="screen">
+      <rect x="94" y="75" width="852" height="780" rx="56"/>
+    </clipPath>
+  </defs>
+
+  <!-- The monitor is decorative; the screen follows the terminal renderer. -->
+  <rect x="8" y="14" width="1024" height="938" rx="46" fill="#655b48"/>
+  <rect x="8" y="6" width="1024" height="938" rx="46" fill="url(#case)" stroke="#e8ddc4" stroke-width="2"/>
+  <rect x="21" y="19" width="998" height="910" rx="35" fill="none" stroke="#f5e8ca" stroke-opacity=".35"/>
+  <rect x="30" y="28" width="980" height="894" rx="31" fill="none" stroke="#8e8067" stroke-opacity=".3"/>
+  <rect x="65" y="47" width="910" height="836" rx="78" fill="url(#bezel)" stroke="#a99c80" stroke-width="2"/>
+  <rect x="83" y="64" width="874" height="803" rx="63" fill="#10150f" stroke="#343b2c" stroke-width="3"/>
+  <rect x="94" y="75" width="852" height="780" rx="56" fill="url(#glass)"/>
+
+  <g clip-path="url(#screen)">
+    <text x="200" y="146" font-family="DejaVu Sans Mono, Liberation Mono, Menlo, Consolas, monospace" font-size="32" fill="#89958a">Score <tspan fill="#3dbb60">32</tspan></text>
+
+    <!-- Each 20 x 20 square represents one game cell (half a terminal row). -->
+    <g transform="translate(200 164) scale(20)">
+      <path d="M0 0H32V32H0ZM1 1V31H31V1Z" fill="#50564f" fill-rule="evenodd"/>
+      <!-- 33 occupied cells: eight right, ten up, nine right, five down. -->
+      <g filter="url(#phosphor)">
+        <g fill="#3dbb60">
+          <rect x="7" y="21" width="9" height="1"/>
+          <rect x="15" y="11" width="1" height="10"/>
+          <rect x="16" y="11" width="8" height="1"/>
+          <rect x="24" y="11" width="1" height="5"/>
+        </g>
+        <rect x="24" y="16" width="1" height="1" fill="#8df794"/>
+      </g>
+      <g fill="#de625a">
+        <rect x="24" y="20" width="1" height="1"/>
+        <rect x="6" y="8" width="1" height="1"/>
+        <rect x="10" y="25" width="1" height="1"/>
+      </g>
+    </g>
+
+    <rect x="94" y="75" width="852" height="780" fill="url(#scanlines)"/>
+    <path d="M102 83H928C891 154 753 188 513 188H107Z" fill="url(#reflection)"/>
+    <path d="M104 800Q520 848 936 800V858H104Z" fill="#000" opacity=".12"/>
+  </g>
+
+  <rect x="94" y="75" width="852" height="780" rx="56" fill="none" stroke="#020704" stroke-opacity=".75" stroke-width="6"/>
+  <rect x="102" y="83" width="836" height="764" rx="50" fill="none" stroke="#98b49b" stroke-opacity=".08"/>
+
+  <g font-family="DejaVu Sans Mono, Liberation Mono, Menlo, Consolas, monospace">
+    <rect x="88" y="898" width="104" height="26" rx="3" fill="#706a55"/>
+    <text x="140" y="916" text-anchor="middle" font-size="16" letter-spacing="3" fill="#e7dfc6">SNAKE</text>
+    <rect x="696" y="898" width="132" height="24" fill="url(#vents)"/>
+    <circle cx="872" cy="909" r="4" fill="#30442b"/>
+    <circle cx="872" cy="908" r="2.5" fill="#a6e883"/>
+    <rect x="897" y="897" width="34" height="25" rx="4" fill="#9c9076" stroke="#d7c9a9"/>
+    <path d="M914 902V909M909 905a7 7 0 1 0 10 0" fill="none" stroke="#5d614e" stroke-width="1.5"/>
+  </g>
+</svg>
