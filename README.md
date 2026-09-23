@@ -3,6 +3,10 @@
 
 # snake 🐍
 
+<p align="center">
+  <img alt="Snake terminal gameplay illustrated on a retro CRT monitor" src="docs/snake-terminal.svg" width="720"/>
+</p>
+
 ⚡ Blazing fast Snake game in Rust for terminal and WebAssembly-powered web.
 
 Play now at: https://snake.ethacore.com
