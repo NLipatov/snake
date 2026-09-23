@@ -6,7 +6,7 @@ use std::io::stdout;
 // RawModeGuard is a RAII struct.
 // Constructor calls enable_raw_mode(),
 // Drop calls disable_raw_mode().
-pub struct RawModeGuard {}
+pub(crate) struct RawModeGuard {}
 
 impl RawModeGuard {
     #[allow(clippy::new_without_default)]
