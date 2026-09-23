@@ -46,7 +46,7 @@ impl WebGame {
     }
 
     pub fn tick(&mut self) -> bool {
-        matches!(self.game.tick(), GameState::Running)
+        self.game.tick() == &GameState::Running
     }
 
     pub fn move_up(&mut self) {
