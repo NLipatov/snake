@@ -1,8 +1,8 @@
 use crate::domain::game::GameState::{self, GameOver, Paused};
 use crate::domain::game::{Game, GameCommand};
 use crate::domain::snake::Direction::{Down, Left, Right, Up};
-use crate::infrastructure::terminal::{Terminal, TerminalCommand};
-use crate::presentation::renderer::Renderer;
+use crate::terminal::input::{Input, TerminalCommand};
+use crate::terminal::renderer::Renderer;
 use crossterm::cursor::{Hide, Show};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -14,21 +14,34 @@ pub enum RunResult {
     Quit { score: usize },
 }
 
-pub struct Cli {
+pub struct GameLoop {
     game: Game,
-    terminal: Terminal,
+    terminal: Input,
     renderer: Renderer,
 }
 
-impl Cli {
-    pub fn new(game: Game, terminal: Terminal, renderer: Renderer) -> Cli {
-        Cli {
+impl GameLoop {
+    pub fn default(game: Game) -> GameLoop {
+        GameLoop {
+            game,
+            terminal: Input::default(),
+            renderer: Renderer::default(),
+        }
+    }
+    pub fn new(game: Game, terminal: Input, renderer: Renderer) -> GameLoop {
+        GameLoop {
             game,
             terminal,
             renderer,
         }
     }
-    pub fn run_loop(&mut self) -> RunResult {
+    pub fn run(&mut self) {
+        match self.run_loop() {
+            RunResult::GameOver { score } => println!("Game Over! Score: {}", score),
+            RunResult::Quit { score } => println!("Quit! Score: {}", score),
+        }
+    }
+    fn run_loop(&mut self) -> RunResult {
         let _rmg = RawModeGuard::new();
         self.renderer.render(&self.game, self.game.score());
         loop {

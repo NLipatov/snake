@@ -13,9 +13,9 @@ pub enum TerminalCommand {
 }
 
 #[derive(Default)]
-pub struct Terminal {}
+pub struct Input {}
 
-impl Terminal {
+impl Input {
     pub fn wait_for_command_sync(&self) -> Option<TerminalCommand> {
         if let Some(key) = self.read_key_sync() {
             return self.key_to_command(key);
@@ -58,12 +58,12 @@ impl Terminal {
 
 #[cfg(test)]
 mod tests {
-    use super::{Terminal, TerminalCommand};
+    use super::{Input, TerminalCommand};
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
     #[test]
     fn key_code_from_event_reads_only_press_events() {
-        let terminal = Terminal::default();
+        let terminal = Input::default();
         let press_event = Event::Key(KeyEvent::new_with_kind(
             KeyCode::Up,
             KeyModifiers::NONE,
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn key_to_command_maps_arrow_keys_escape_and_pause() {
-        let terminal = Terminal::default();
+        let terminal = Input::default();
 
         assert!(matches!(
             terminal.key_to_command(KeyCode::Up),
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn key_to_command_ignores_unhandled_keys() {
-        let terminal = Terminal::default();
+        let terminal = Input::default();
 
         assert!(terminal.key_to_command(KeyCode::Enter).is_none());
     }
