@@ -184,12 +184,12 @@ mod tests {
         // An attempt can pick a wall or the snake, so allow repeated attempts.
         for _ in 0..1_000 {
             game.attempt_random_food_spawn();
-            if game.food_len() > 0 {
-                return;
-            }
         }
 
-        panic!("food should spawn on an empty cell at 100% probability");
+        assert!(
+            game.food_len() > 0,
+            "food should spawn on an empty cell at 100% probability"
+        );
     }
 
     #[test]
