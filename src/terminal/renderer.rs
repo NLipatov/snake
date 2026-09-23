@@ -278,8 +278,8 @@ impl RenderCell {
 #[cfg(test)]
 mod tests {
     use super::{
-        BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_DIM, FG_GREEN, FG_RED, RESET,
-        RenderCell, Renderer,
+        BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_BRIGHT_GREEN, FG_DIM,
+        FG_GREEN, FG_RED, RESET, RenderCell, Renderer,
     };
     use crate::domain::game::Game;
     use crate::domain::grid::{Grid, Point};
@@ -401,7 +401,7 @@ mod tests {
         assert_eq!(
             output,
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_GREEN}▀{RESET}\x1B[5;2H"
+                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[5;2H"
             )
         );
     }
@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
+                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
             )
         );
 
@@ -512,7 +512,7 @@ mod tests {
 
         assert!(matches!(
             RenderCell::new(grid, &game, &point(1, 1)),
-            RenderCell::SnakeBody
+            RenderCell::SnakeHead
         ));
         assert!(matches!(
             RenderCell::new(grid, &game, &point(0, 0)),
