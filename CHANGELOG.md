@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/NLipatov/snake/compare/v0.1.7...v0.1.8) - 2026-09-27
+
+### Added
+
+- *(terminal)* in-grid overlay messages ([#29](https://github.com/NLipatov/snake/pull/29))
+
+### Other
+
+- Chore/linux musl ([#28](https://github.com/NLipatov/snake/pull/28))
+
 ## [0.1.7](https://github.com/NLipatov/snake/compare/v0.1.6...v0.1.7) - 2026-09-23
 
 ### Fixed
