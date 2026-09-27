@@ -38,12 +38,12 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
-        self.render_state(out, game);
+        self.render_message(out, game);
         let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
     }
-    fn render_state<W: Write>(&mut self, out: &mut W, game: &Game) {
+    fn render_message<W: Write>(&mut self, out: &mut W, game: &Game) {
         let message = match game.state() {
             Paused => "Paused",
             GameOver => "Game Over",
