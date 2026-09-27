@@ -449,6 +449,28 @@ mod tests {
     }
 
     #[test]
+    fn game_over_message_is_centered_after_collision() {
+        let mut renderer = Renderer::new();
+        let mut game = game_with_geometry(13, 6, point(11, 2));
+        renderer.render_to(&mut Vec::new(), &game, 0);
+
+        assert!(matches!(
+            game.tick(),
+            crate::domain::game::GameState::GameOver
+        ));
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, game.score());
+
+        let output = String::from_utf8(out).expect("render should be utf-8");
+        assert!(!output.contains("\x1B[2J"));
+        assert!(output.contains(&format!(
+            "\x1B[3;4H{BG_BRIGHT_BLACK}{}Game Over{RESET}",
+            super::FG_WHITE
+        )));
+        assert!(output.ends_with("\x1B[5;2H"));
+    }
+
+    #[test]
     fn paused_label_is_omitted_when_grid_is_too_narrow() {
         use crate::domain::game::GameCommand;
 
