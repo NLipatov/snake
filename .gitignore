@@ -7,3 +7,6 @@
 
 # LSP Tools
 /.serena
+
+# rune
+*.rswp

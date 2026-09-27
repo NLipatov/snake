@@ -36,12 +36,10 @@ impl GameLoop {
         }
     }
     pub fn run(&mut self) {
-        match self.run_loop() {
-            RunResult::GameOver { score } => println!("Game Over! Score: {}", score),
-            RunResult::Quit { score } => println!("Quit! Score: {}", score),
-        }
+        self.run_loop();
+        println!();
     }
-    fn run_loop(&mut self) -> RunResult {
+    fn run_loop(&mut self) {
         let _rmg = RawModeGuard::new();
         self.renderer.render(&self.game, self.game.score());
         loop {
@@ -51,9 +49,7 @@ impl GameLoop {
             } {
                 match command {
                     TerminalCommand::Escape => {
-                        return RunResult::Quit {
-                            score: self.game.score(),
-                        };
+                        return;
                     }
                     TerminalCommand::Down => self.game.apply_command(GameCommand::Move(Down)),
                     TerminalCommand::Up => self.game.apply_command(GameCommand::Move(Up)),
@@ -71,9 +67,6 @@ impl GameLoop {
             }
         }
         self.renderer.render(&self.game, self.game.score());
-        RunResult::GameOver {
-            score: self.game.score(),
-        }
     }
 }
 

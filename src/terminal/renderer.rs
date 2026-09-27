@@ -1,5 +1,5 @@
 use crate::domain::game::Game;
-use crate::domain::game::GameState::Paused;
+use crate::domain::game::GameState::{GameOver, Paused};
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
 
@@ -38,30 +38,32 @@ impl Renderer {
         }
         self.render_header(out, score);
         self.render_grid(out, game);
-        self.render_state(out, game);
+        self.render_message(out, game);
         let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
     }
-    fn render_state<W: Write>(&mut self, out: &mut W, game: &Game) {
-        if game.state() == &Paused {
-            let label = "Paused";
-            // is there a space to put a label?
-            if (game.grid().width() as usize) < label.len() {
-                return;
-            }
-            let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
-            let x = X_OFFSET + (game.grid().width() as usize - label.len()) / 2;
-            self.move_cursor(out, y, x);
-            self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, label);
-            if let Some(frame) = self.displayed_frame.as_mut() {
-                for i in 0..label.len() {
-                    frame.set(
-                        x - X_OFFSET + i,
-                        y - Y_OFFSET - HEADER_SIZE,
-                        TerminalCell::new(RenderCell::Text, RenderCell::Text),
-                    );
-                }
+    fn render_message<W: Write>(&mut self, out: &mut W, game: &Game) {
+        let message = match game.state() {
+            Paused => "Paused",
+            GameOver => "Game Over",
+            _ => return,
+        };
+        // is there a space to put a label?
+        if (game.grid().width() as usize) < message.len() {
+            return;
+        }
+        let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+        let x = X_OFFSET + (game.grid().width() as usize - message.len()) / 2;
+        self.move_cursor(out, y, x);
+        self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message);
+        if let Some(frame) = self.displayed_frame.as_mut() {
+            for i in 0..message.len() {
+                frame.set(
+                    x - X_OFFSET + i,
+                    y - Y_OFFSET - HEADER_SIZE,
+                    TerminalCell::new(RenderCell::Text, RenderCell::Text),
+                );
             }
         }
     }
@@ -444,6 +446,28 @@ mod tests {
             String::from_utf8(out).unwrap(),
             format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
         );
+    }
+
+    #[test]
+    fn game_over_message_is_centered_after_collision() {
+        let mut renderer = Renderer::new();
+        let mut game = game_with_geometry(13, 6, point(11, 2));
+        renderer.render_to(&mut Vec::new(), &game, 0);
+
+        assert!(matches!(
+            game.tick(),
+            crate::domain::game::GameState::GameOver
+        ));
+        let mut out = Vec::new();
+        renderer.render_to(&mut out, &game, game.score());
+
+        let output = String::from_utf8(out).expect("render should be utf-8");
+        assert!(!output.contains("\x1B[2J"));
+        assert!(output.contains(&format!(
+            "\x1B[3;4H{BG_BRIGHT_BLACK}{}Game Over{RESET}",
+            super::FG_WHITE
+        )));
+        assert!(output.ends_with("\x1B[5;2H"));
     }
 
     #[test]
