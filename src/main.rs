@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     use snake::domain::game::Game;
     use snake::domain::grid::{Grid, Point};
@@ -16,6 +15,3 @@ fn main() {
     let mut cli = GameLoop::default(game);
     cli.run();
 }
-
-#[cfg(target_arch = "wasm32")]
-fn main() {}

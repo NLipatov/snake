@@ -1,5 +1,5 @@
 use crate::domain::game::Game;
-use crate::domain::game::GameState::Paused;
+use crate::domain::game::GameState::{GameOver, Paused};
 use crate::domain::grid::{Grid, GridCell, Point};
 use std::io::{Write, stdout};
 
@@ -44,24 +44,26 @@ impl Renderer {
         out.flush().expect("could not flush stdout");
     }
     fn render_state<W: Write>(&mut self, out: &mut W, game: &Game) {
-        if game.state() == &Paused {
-            let label = "Paused";
-            // is there a space to put a label?
-            if (game.grid().width() as usize) < label.len() {
-                return;
-            }
-            let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
-            let x = X_OFFSET + (game.grid().width() as usize - label.len()) / 2;
-            self.move_cursor(out, y, x);
-            self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, label);
-            if let Some(frame) = self.displayed_frame.as_mut() {
-                for i in 0..label.len() {
-                    frame.set(
-                        x - X_OFFSET + i,
-                        y - Y_OFFSET - HEADER_SIZE,
-                        TerminalCell::new(RenderCell::Text, RenderCell::Text),
-                    );
-                }
+        let message = match game.state() {
+            Paused => "Paused",
+            GameOver => "Game Over",
+            _ => return,
+        };
+        // is there a space to put a label?
+        if (game.grid().width() as usize) < message.len() {
+            return;
+        }
+        let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+        let x = X_OFFSET + (game.grid().width() as usize - message.len()) / 2;
+        self.move_cursor(out, y, x);
+        self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message);
+        if let Some(frame) = self.displayed_frame.as_mut() {
+            for i in 0..message.len() {
+                frame.set(
+                    x - X_OFFSET + i,
+                    y - Y_OFFSET - HEADER_SIZE,
+                    TerminalCell::new(RenderCell::Text, RenderCell::Text),
+                );
             }
         }
     }
