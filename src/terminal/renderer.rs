@@ -42,18 +42,37 @@ impl Renderer {
             terminal_size: TerminalSize::current(),
         }
     }
-    pub fn render(&mut self, game: &Game, score: usize) {
+    pub fn render(&mut self, game: &Game) {
         let mut out = stdout();
-        self.render_to(&mut out, game, score);
+        self.render_to(&mut out, game);
     }
-    fn render_to<W: Write>(&mut self, out: &mut W, game: &Game, score: usize) {
+    fn render_to<W: Write>(&mut self, out: &mut W, game: &Game) {
         self.prepare_frame(out, game);
-        self.render_header(out, score);
+        self.render_header(out, game.score());
         self.render_grid(out, game);
         self.render_message(out, game);
         let footer_row = Y_OFFSET + HEADER_SIZE + Self::scaled_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
+    }
+    fn prepare_frame<W: Write>(&mut self, out: &mut W, game: &Game) {
+        let grid = game.grid();
+        let grid_changed = self.frame.as_ref().is_none_or(|f| {
+            f.width != grid.width() as usize || f.height != Self::scaled_frame_height(grid)
+        });
+        let terminal_size_changed = if let Some(cur_size) = TerminalSize::current() {
+            let prev_size = self.terminal_size.replace(cur_size);
+            prev_size != self.terminal_size
+        } else {
+            false
+        };
+        if terminal_size_changed || grid_changed {
+            self.frame = Option::from(Frame::new(
+                grid.width() as usize,
+                Self::scaled_frame_height(grid),
+            ));
+            self.clear(out);
+        }
     }
     fn render_message<W: Write>(&mut self, out: &mut W, game: &Game) {
         let message = match game.state() {
@@ -159,25 +178,6 @@ impl Renderer {
                     }
                 }
             }
-        }
-    }
-    fn prepare_frame<W: Write>(&mut self, out: &mut W, game: &Game) {
-        let grid = game.grid();
-        let grid_changed = self.frame.as_ref().is_none_or(|f| {
-            f.width != grid.width() as usize || f.height != Self::scaled_frame_height(grid)
-        });
-        let terminal_size_changed = if let Some(cur_size) = TerminalSize::current() {
-            let prev_size = self.terminal_size.replace(cur_size);
-            prev_size != self.terminal_size
-        } else {
-            false
-        };
-        if terminal_size_changed || grid_changed {
-            self.frame = Option::from(Frame::new(
-                grid.width() as usize,
-                Self::scaled_frame_height(grid),
-            ));
-            self.clear(out);
         }
     }
     fn scaled_frame_height(grid: &Grid) -> usize {
@@ -363,13 +363,23 @@ mod tests {
         Game::new(grid, snake, 0)
     }
 
+    fn game_with_score(score: usize) -> Game {
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let mut snake = Snake::new(point(2, 2), geometry).expect("snake should fit in grid");
+        for _ in 0..score {
+            snake.grow();
+        }
+        Game::new(grid, snake, 0)
+    }
+
     #[test]
-    fn render_accepts_grid_snake_and_score() {
+    fn render_reads_score_from_game() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(7);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &game, 7);
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
@@ -431,10 +441,10 @@ mod tests {
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(1);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &game, 1);
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
@@ -449,12 +459,12 @@ mod tests {
     #[test]
     fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(1);
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &game, 1);
-        renderer.render_to(&mut second_out, &game, 1);
+        renderer.render_to(&mut first_out, &game);
+        renderer.render_to(&mut second_out, &game);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -473,8 +483,8 @@ mod tests {
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &first_game, 0);
-        renderer.render_to(&mut second_out, &second_game, 0);
+        renderer.render_to(&mut first_out, &first_game);
+        renderer.render_to(&mut second_out, &second_game);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -494,11 +504,11 @@ mod tests {
         let mut renderer = Renderer::new();
         let mut game = game_with_geometry(8, 8, point(3, 2));
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
 
         game.apply_command(GameCommand::TogglePause);
         out.clear();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
@@ -508,10 +518,10 @@ mod tests {
         );
 
         // Render twice while paused to exercise both reused frame buffers.
-        renderer.render_to(&mut Vec::new(), &game, 0);
+        renderer.render_to(&mut Vec::new(), &game);
         game.apply_command(GameCommand::TogglePause);
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
@@ -520,7 +530,7 @@ mod tests {
         );
 
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
@@ -531,14 +541,14 @@ mod tests {
     fn game_over_message_is_centered_after_collision() {
         let mut renderer = Renderer::new();
         let mut game = game_with_geometry(13, 6, point(11, 2));
-        renderer.render_to(&mut Vec::new(), &game, 0);
+        renderer.render_to(&mut Vec::new(), &game);
 
         assert!(matches!(
             game.tick(),
             crate::domain::game::GameState::GameOver
         ));
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, game.score());
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
         assert!(!output.contains("\x1B[2J"));
@@ -556,11 +566,11 @@ mod tests {
         let mut renderer = Renderer::new();
         let mut game = game_at(point(2, 2));
         let mut running = Vec::new();
-        renderer.render_to(&mut running, &game, 0);
+        renderer.render_to(&mut running, &game);
 
         game.apply_command(GameCommand::TogglePause);
         let mut paused = Vec::new();
-        Renderer::new().render_to(&mut paused, &game, 0);
+        Renderer::new().render_to(&mut paused, &game);
 
         assert_eq!(paused, running);
     }
@@ -572,13 +582,13 @@ mod tests {
         for (width, height) in [(5, 5), (8, 5), (8, 8), (5, 5)] {
             let game = game_with_geometry(width, height, point(2, 2));
             let mut resized = Vec::new();
-            renderer.render_to(&mut resized, &game, 0);
+            renderer.render_to(&mut resized, &game);
             let mut fresh = Vec::new();
-            Renderer::new().render_to(&mut fresh, &game, 0);
+            Renderer::new().render_to(&mut fresh, &game);
             assert_eq!(resized, fresh, "resizing to {width}x{height}");
 
             let mut unchanged = Vec::new();
-            renderer.render_to(&mut unchanged, &game, 0);
+            renderer.render_to(&mut unchanged, &game);
             let output = String::from_utf8(unchanged).unwrap();
             assert!(!output.contains("\x1B[2J"));
             assert!(!output.contains('█'));

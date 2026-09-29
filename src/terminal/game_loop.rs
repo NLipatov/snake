@@ -41,7 +41,7 @@ impl GameLoop {
     }
     fn run_loop(&mut self) {
         let _rmg = RawModeGuard::new();
-        self.renderer.render(&self.game, self.game.score());
+        self.renderer.render(&self.game);
         loop {
             if let Some(command) = match self.game.state() {
                 GameState::Paused => self.terminal.wait_for_command_sync(),
@@ -61,12 +61,12 @@ impl GameLoop {
             if let GameOver = self.game.tick() {
                 break;
             }
-            self.renderer.render(&self.game, self.game.score());
+            self.renderer.render(&self.game);
             if self.game.state() != &Paused {
                 std::thread::sleep(Duration::from_millis(115));
             }
         }
-        self.renderer.render(&self.game, self.game.score());
+        self.renderer.render(&self.game);
     }
 }
 
