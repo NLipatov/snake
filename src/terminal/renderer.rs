@@ -90,8 +90,20 @@ impl Renderer {
     fn render_header<W: Write>(&self, out: &mut W, score: usize) {
         // Terminal coordinates are 1-based; the top-left cell is (1, 1)
         self.move_cursor(out, Y_OFFSET, X_OFFSET);
-        write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
-            .expect("could not write header");
+        let mut label = format!("Score: {score}");
+        let width = self.available_width();
+        if width == 0 {
+            return;
+        }
+        if label.len() > width {
+            label.truncate(width - 1);
+            label.push('>');
+        }
+        match label.split_once(' ') {
+            Some((title, value)) => write!(out, "{FG_DIM}{title}{RESET} {FG_GREEN}{value}{RESET}")
+                .expect("could not write header"),
+            None => write!(out, "{FG_DIM}{label}{RESET}").expect("could not write header"),
+        }
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
@@ -103,12 +115,11 @@ impl Renderer {
                 && row > term_size.height
             {
                 // terminal coordinates are 1-based. offset is also 1 based.
-                let available_width =
-                    if grid.width() as usize > term_size.width.saturating_sub(X_OFFSET - 1) {
-                        term_size.width.saturating_sub(X_OFFSET)
-                    } else {
-                        term_size.width.saturating_sub(X_OFFSET - 1)
-                    };
+                let available_width = if grid.width() as usize > self.available_width() {
+                    self.available_width().saturating_sub(1) // leave last 1 column for width overflow indicator '>'
+                } else {
+                    self.available_width()
+                };
                 let message = "V".repeat(usize::min(grid.width() as usize, available_width));
                 let row = term_size.height;
                 let col = X_OFFSET;
@@ -164,6 +175,13 @@ impl Renderer {
                 Self::scaled_frame_height(grid),
             ));
             self.clear(out);
+        }
+    }
+    fn available_width(&self) -> usize {
+        if let Some(term_size) = &self.terminal_size {
+            term_size.width.saturating_sub(X_OFFSET - 1)
+        } else {
+            0
         }
     }
     fn scaled_frame_height(grid: &Grid) -> usize {
@@ -327,7 +345,7 @@ impl RenderCell {
 mod tests {
     use super::{
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_BRIGHT_GREEN, FG_DIM,
-        FG_GREEN, FG_RED, RESET, RenderCell, Renderer,
+        FG_GREEN, FG_RED, RESET, RenderCell, Renderer, TerminalSize,
     };
     use crate::domain::game::Game;
     use crate::domain::grid::{Grid, Point};
@@ -359,7 +377,7 @@ mod tests {
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}7{RESET}")));
+        assert!(output.contains(&format!("{FG_DIM}Score:{RESET} {FG_GREEN}7{RESET}")));
         assert!(output.contains("\x1B[2;2H"));
     }
 
@@ -372,7 +390,26 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}3{RESET}")
+        );
+    }
+
+    #[test]
+    fn render_header_truncates_to_terminal_width() {
+        let renderer = Renderer {
+            terminal_size: Some(TerminalSize {
+                width: 8,
+                height: 10,
+            }),
+            ..Renderer::default()
+        };
+        let mut out = Vec::new();
+
+        renderer.render_header(&mut out, 3);
+
+        assert_eq!(
+            String::from_utf8(out).expect("header should be utf-8"),
+            format!("\x1B[1;2H{FG_DIM}Score:>{RESET}")
         );
     }
 
@@ -407,7 +444,7 @@ mod tests {
 
         assert!(output.starts_with("\x1B[2J\x1B[1;2H"));
         assert_eq!(output.matches("\x1B[2J").count(), 1);
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
+        assert!(output.contains(&format!("{FG_DIM}Score:{RESET} {FG_GREEN}1{RESET}")));
         assert!(output.contains("\x1B[2;2H"));
         assert!(output.ends_with("\x1B[5;2H"));
         assert!(output.contains("█"));
@@ -428,7 +465,7 @@ mod tests {
         assert!(!output.contains("\x1B[2J"));
         assert_eq!(
             output,
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;2H")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}1{RESET}\x1B[5;2H")
         );
     }
 
@@ -449,7 +486,7 @@ mod tests {
         assert_eq!(
             output,
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[5;2H"
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[5;2H"
             )
         );
     }
@@ -469,7 +506,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;2H",
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;3H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;2H",
                 super::FG_WHITE
             )
         );
@@ -482,7 +519,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
             )
         );
 
@@ -490,7 +527,7 @@ mod tests {
         renderer.render_to(&mut out, &game, 0);
         assert_eq!(
             String::from_utf8(out).unwrap(),
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
         );
     }
 
