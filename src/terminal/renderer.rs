@@ -12,34 +12,46 @@ const HEADER_SIZE: usize = 1;
 // Each terminal row contains to halves - top and bottom.
 const SCALE: i32 = 2;
 
+#[derive(PartialEq)]
+struct TerminalSize {
+    pub height: usize,
+    pub width: usize,
+}
+
+impl TerminalSize {
+    pub fn current() -> Option<TerminalSize> {
+        crossterm::terminal::size()
+            .ok()
+            .map(|(width, height)| TerminalSize {
+                width: width as usize,
+                height: height as usize,
+            })
+    }
+}
+
 #[derive(Default)]
 pub struct Renderer {
-    work_frame: Option<Frame>,
-    displayed_frame: Option<Frame>,
+    frame: Option<Frame>,
+    terminal_size: Option<TerminalSize>,
 }
 
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
-            work_frame: None,
-            displayed_frame: None,
+            frame: None,
+            terminal_size: TerminalSize::current(),
         }
-    }
-    fn clear<W: Write>(&self, out: &mut W) {
-        write!(out, "\x1B[2J").expect("could not clear screen");
     }
     pub fn render(&mut self, game: &Game, score: usize) {
         let mut out = stdout();
         self.render_to(&mut out, game, score);
     }
     fn render_to<W: Write>(&mut self, out: &mut W, game: &Game, score: usize) {
-        if self.geometry_changed(game.grid()) || self.displayed_frame.is_none() {
-            self.clear(out)
-        }
+        self.prepare_frame(out, game);
         self.render_header(out, score);
         self.render_grid(out, game);
         self.render_message(out, game);
-        let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
+        let footer_row = Y_OFFSET + HEADER_SIZE + Self::scaled_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
     }
@@ -49,15 +61,23 @@ impl Renderer {
             GameOver => "Game Over",
             _ => return,
         };
-        // is there a space to put a label?
+        // is there a space for message on grid?
         if (game.grid().width() as usize) < message.len() {
             return;
         }
-        let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+        let y = Y_OFFSET + HEADER_SIZE + (Self::scaled_frame_height(game.grid()) - 1) / 2;
         let x = X_OFFSET + (game.grid().width() as usize - message.len()) / 2;
+        // is there a space for message on terminal?
+        if self
+            .terminal_size
+            .as_ref()
+            .is_some_and(|size| size.width < x + message.len() || size.height <= y)
+        {
+            return;
+        }
         self.move_cursor(out, y, x);
         self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message);
-        if let Some(frame) = self.displayed_frame.as_mut() {
+        if let Some(frame) = self.frame.as_mut() {
             for i in 0..message.len() {
                 frame.set(
                     x - X_OFFSET + i,
@@ -75,54 +95,83 @@ impl Renderer {
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
-        let mut frame = self.prepare_work_frame(grid);
         // each row contains two halves - top and bottom
-        for y in (0..grid.height()).step_by(SCALE as usize) {
-            let term_y = (y / SCALE) as usize;
-            for x in 0..grid.width() {
-                let top = RenderCell::new(grid, game, &Point::new(x, y));
-                let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, game, &Point::new(x, y + 1))
+        for grid_y in (0..grid.height()).step_by(SCALE as usize) {
+            let term_y = (grid_y / SCALE) as usize;
+            let row = Y_OFFSET + HEADER_SIZE + term_y;
+            if let Some(term_size) = &self.terminal_size
+                && row > term_size.height
+            {
+                // terminal coordinates are 1-based. offset is also 1 based.
+                let available_width =
+                    if grid.width() as usize > term_size.width.saturating_sub(X_OFFSET - 1) {
+                        term_size.width.saturating_sub(X_OFFSET)
+                    } else {
+                        term_size.width.saturating_sub(X_OFFSET - 1)
+                    };
+                let message = "V".repeat(usize::min(grid.width() as usize, available_width));
+                let row = term_size.height;
+                let col = X_OFFSET;
+                self.move_cursor(out, row, col);
+                self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message.as_str());
+                break;
+            }
+            for grid_x in 0..grid.width() {
+                let col = X_OFFSET + grid_x as usize;
+                if let Some(term_size) = &self.terminal_size
+                    && col > term_size.width
+                {
+                    let message = String::from(">");
+                    self.move_cursor(out, row, term_size.width);
+                    self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message.as_str());
+                    break;
+                }
+                let top = RenderCell::new(grid, game, &Point::new(grid_x, grid_y));
+                let bottom = if grid_y + 1 < grid.height() {
+                    RenderCell::new(grid, game, &Point::new(grid_x, grid_y + 1))
                 } else {
                     RenderCell::Empty
                 };
-                frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
-                if match self.displayed_frame.as_ref() {
-                    None => true,
-                    Some(prev_frame) => {
-                        prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
-                    }
-                } {
-                    let row = Y_OFFSET + HEADER_SIZE + term_y;
-                    let col = X_OFFSET + x as usize;
+                let cell = TerminalCell::new(top, bottom);
+                if self
+                    .frame
+                    .as_ref()
+                    .is_none_or(|f| f.get(grid_x as usize, term_y) != &cell)
+                {
                     self.move_cursor(out, row, col);
-                    self.render_cell(out, frame.get(x as usize, term_y));
+                    self.render_cell(out, &cell);
+                    if let Some(frame) = self.frame.as_mut() {
+                        frame.set(grid_x as usize, term_y, cell);
+                    }
                 }
             }
         }
-        self.work_frame = self.displayed_frame.replace(frame);
     }
-    fn geometry_changed(&self, grid: &Grid) -> bool {
-        self.displayed_frame.as_ref().is_some_and(|f| {
-            !f.has_dimensions(grid.width() as usize, Self::effective_frame_height(grid))
-        })
-    }
-    fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
-        let geometry_changed = self.geometry_changed(grid);
-        if geometry_changed {
-            self.displayed_frame = None;
-        }
-        if self.work_frame.is_none() || geometry_changed {
-            self.work_frame = Option::from(Frame::new(
+    fn prepare_frame<W: Write>(&mut self, out: &mut W, game: &Game) {
+        let grid = game.grid();
+        let grid_changed = self.frame.as_ref().is_none_or(|f| {
+            f.width != grid.width() as usize || f.height != Self::scaled_frame_height(grid)
+        });
+        let terminal_size_changed = if let Some(cur_size) = TerminalSize::current() {
+            let prev_size = self.terminal_size.replace(cur_size);
+            prev_size != self.terminal_size
+        } else {
+            false
+        };
+        if terminal_size_changed || grid_changed {
+            self.frame = Option::from(Frame::new(
                 grid.width() as usize,
-                Self::effective_frame_height(grid),
-            ))
+                Self::scaled_frame_height(grid),
+            ));
+            self.clear(out);
         }
-        self.work_frame.take().unwrap()
     }
-    fn effective_frame_height(grid: &Grid) -> usize {
+    fn scaled_frame_height(grid: &Grid) -> usize {
         // frame row is splitted to 2 halves, which effectively make it 2 rows in a row.
         ((grid.height() + SCALE - 1) / SCALE) as usize
+    }
+    fn clear<W: Write>(&self, out: &mut W) {
+        write!(out, "\x1B[2J").expect("could not clear screen");
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -194,9 +243,6 @@ impl Frame {
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
-    }
-    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
-        self.height == height && self.width == width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
