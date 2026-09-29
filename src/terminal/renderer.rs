@@ -91,13 +91,15 @@ impl Renderer {
         // Terminal coordinates are 1-based; the top-left cell is (1, 1)
         self.move_cursor(out, Y_OFFSET, X_OFFSET);
         let mut label = format!("Score: {score}");
-        let width = self.available_width();
-        if width == 0 {
-            return;
-        }
-        if label.len() > width {
-            label.truncate(width - 1);
-            label.push('>');
+        if let Some(term_size) = &self.terminal_size {
+            let width = term_size.width.saturating_sub(X_OFFSET - 1);
+            if width == 0 {
+                return;
+            }
+            if label.len() > width {
+                label.truncate(width - 1);
+                label.push('>');
+            }
         }
         match label.split_once(' ') {
             Some((title, value)) => write!(out, "{FG_DIM}{title}{RESET} {FG_GREEN}{value}{RESET}")
@@ -115,10 +117,11 @@ impl Renderer {
                 && row > term_size.height
             {
                 // terminal coordinates are 1-based. offset is also 1 based.
-                let available_width = if grid.width() as usize > self.available_width() {
-                    self.available_width().saturating_sub(1) // leave last 1 column for width overflow indicator '>'
+                let width = term_size.width.saturating_sub(X_OFFSET - 1);
+                let available_width = if grid.width() as usize > width {
+                    width.saturating_sub(1) // leave last 1 column for width overflow indicator '>'
                 } else {
-                    self.available_width()
+                    width
                 };
                 let message = "V".repeat(usize::min(grid.width() as usize, available_width));
                 let row = term_size.height;
@@ -175,13 +178,6 @@ impl Renderer {
                 Self::scaled_frame_height(grid),
             ));
             self.clear(out);
-        }
-    }
-    fn available_width(&self) -> usize {
-        if let Some(term_size) = &self.terminal_size {
-            term_size.width.saturating_sub(X_OFFSET - 1)
-        } else {
-            0
         }
     }
     fn scaled_frame_height(grid: &Grid) -> usize {
@@ -383,7 +379,7 @@ mod tests {
 
     #[test]
     fn render_header_writes_dimmed_score_line() {
-        let renderer = Renderer::new();
+        let renderer = Renderer::default();
         let mut out = Vec::new();
 
         renderer.render_header(&mut out, 3);
