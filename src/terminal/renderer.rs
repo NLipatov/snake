@@ -12,36 +12,67 @@ const HEADER_SIZE: usize = 1;
 // Each terminal row contains to halves - top and bottom.
 const SCALE: i32 = 2;
 
+#[derive(PartialEq)]
+struct TerminalSize {
+    pub height: usize,
+    pub width: usize,
+}
+
+impl TerminalSize {
+    pub fn current() -> Option<TerminalSize> {
+        crossterm::terminal::size()
+            .ok()
+            .map(|(width, height)| TerminalSize {
+                width: width as usize,
+                height: height as usize,
+            })
+    }
+}
+
 #[derive(Default)]
 pub struct Renderer {
-    work_frame: Option<Frame>,
-    displayed_frame: Option<Frame>,
+    frame: Option<Frame>,
+    terminal_size: Option<TerminalSize>,
 }
 
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
-            work_frame: None,
-            displayed_frame: None,
+            frame: None,
+            terminal_size: TerminalSize::current(),
         }
     }
-    fn clear<W: Write>(&self, out: &mut W) {
-        write!(out, "\x1B[2J").expect("could not clear screen");
-    }
-    pub fn render(&mut self, game: &Game, score: usize) {
+    pub fn render(&mut self, game: &Game) {
         let mut out = stdout();
-        self.render_to(&mut out, game, score);
+        self.render_to(&mut out, game);
     }
-    fn render_to<W: Write>(&mut self, out: &mut W, game: &Game, score: usize) {
-        if self.geometry_changed(game.grid()) || self.displayed_frame.is_none() {
-            self.clear(out)
-        }
-        self.render_header(out, score);
+    fn render_to<W: Write>(&mut self, out: &mut W, game: &Game) {
+        self.prepare_frame(out, game);
+        self.render_header(out, game.score());
         self.render_grid(out, game);
         self.render_message(out, game);
-        let footer_row = Y_OFFSET + HEADER_SIZE + Self::effective_frame_height(game.grid());
+        let footer_row = Y_OFFSET + HEADER_SIZE + Self::scaled_frame_height(game.grid());
         self.move_cursor(out, footer_row, X_OFFSET);
         out.flush().expect("could not flush stdout");
+    }
+    fn prepare_frame<W: Write>(&mut self, out: &mut W, game: &Game) {
+        let grid = game.grid();
+        let grid_changed = self.frame.as_ref().is_none_or(|f| {
+            f.width != grid.width() as usize || f.height != Self::scaled_frame_height(grid)
+        });
+        let terminal_size_changed = if let Some(cur_size) = TerminalSize::current() {
+            let prev_size = self.terminal_size.replace(cur_size);
+            prev_size != self.terminal_size
+        } else {
+            false
+        };
+        if terminal_size_changed || grid_changed {
+            self.frame = Option::from(Frame::new(
+                grid.width() as usize,
+                Self::scaled_frame_height(grid),
+            ));
+            self.clear(out);
+        }
     }
     fn render_message<W: Write>(&mut self, out: &mut W, game: &Game) {
         let message = match game.state() {
@@ -49,15 +80,23 @@ impl Renderer {
             GameOver => "Game Over",
             _ => return,
         };
-        // is there a space to put a label?
+        // is there a space for message on grid?
         if (game.grid().width() as usize) < message.len() {
             return;
         }
-        let y = Y_OFFSET + HEADER_SIZE + (Self::effective_frame_height(game.grid()) - 1) / 2;
+        let y = Y_OFFSET + HEADER_SIZE + (Self::scaled_frame_height(game.grid()) - 1) / 2;
         let x = X_OFFSET + (game.grid().width() as usize - message.len()) / 2;
+        // is there a space for message on terminal?
+        if self
+            .terminal_size
+            .as_ref()
+            .is_some_and(|size| size.width < x + message.len() || size.height <= y)
+        {
+            return;
+        }
         self.move_cursor(out, y, x);
         self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message);
-        if let Some(frame) = self.displayed_frame.as_mut() {
+        if let Some(frame) = self.frame.as_mut() {
             for i in 0..message.len() {
                 frame.set(
                     x - X_OFFSET + i,
@@ -70,59 +109,83 @@ impl Renderer {
     fn render_header<W: Write>(&self, out: &mut W, score: usize) {
         // Terminal coordinates are 1-based; the top-left cell is (1, 1)
         self.move_cursor(out, Y_OFFSET, X_OFFSET);
-        write!(out, "{FG_DIM}Score{RESET} {FG_GREEN}{}{RESET}", score)
-            .expect("could not write header");
+        let mut label = format!("Score: {score}");
+        if let Some(term_size) = &self.terminal_size {
+            let width = term_size.width.saturating_sub(X_OFFSET - 1);
+            if width == 0 {
+                return;
+            }
+            if label.len() > width {
+                label.truncate(width - 1);
+                label.push('>');
+            }
+        }
+        match label.split_once(' ') {
+            Some((title, value)) => write!(out, "{FG_DIM}{title}{RESET} {FG_GREEN}{value}{RESET}")
+                .expect("could not write header"),
+            None => write!(out, "{FG_DIM}{label}{RESET}").expect("could not write header"),
+        }
     }
     fn render_grid<W: Write>(&mut self, out: &mut W, game: &Game) {
         let grid = game.grid();
-        let mut frame = self.prepare_work_frame(grid);
         // each row contains two halves - top and bottom
-        for y in (0..grid.height()).step_by(SCALE as usize) {
-            let term_y = (y / SCALE) as usize;
-            for x in 0..grid.width() {
-                let top = RenderCell::new(grid, game, &Point::new(x, y));
-                let bottom = if y + 1 < grid.height() {
-                    RenderCell::new(grid, game, &Point::new(x, y + 1))
+        for grid_y in (0..grid.height()).step_by(SCALE as usize) {
+            let term_y = (grid_y / SCALE) as usize;
+            let row = Y_OFFSET + HEADER_SIZE + term_y;
+            if let Some(term_size) = &self.terminal_size
+                && row > term_size.height
+            {
+                // terminal coordinates are 1-based. offset is also 1 based.
+                let width = term_size.width.saturating_sub(X_OFFSET - 1);
+                let available_width = if grid.width() as usize > width {
+                    width.saturating_sub(1) // leave last 1 column for width overflow indicator '>'
+                } else {
+                    width
+                };
+                let message = "V".repeat(usize::min(grid.width() as usize, available_width));
+                let row = term_size.height;
+                let col = X_OFFSET;
+                self.move_cursor(out, row, col);
+                self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message.as_str());
+                break;
+            }
+            for grid_x in 0..grid.width() {
+                let col = X_OFFSET + grid_x as usize;
+                if let Some(term_size) = &self.terminal_size
+                    && col > term_size.width
+                {
+                    let message = String::from(">");
+                    self.move_cursor(out, row, term_size.width);
+                    self.render_text(out, FG_WHITE, BG_BRIGHT_BLACK, message.as_str());
+                    break;
+                }
+                let top = RenderCell::new(grid, game, &Point::new(grid_x, grid_y));
+                let bottom = if grid_y + 1 < grid.height() {
+                    RenderCell::new(grid, game, &Point::new(grid_x, grid_y + 1))
                 } else {
                     RenderCell::Empty
                 };
-                frame.set(x as usize, term_y, TerminalCell::new(top, bottom));
-                if match self.displayed_frame.as_ref() {
-                    None => true,
-                    Some(prev_frame) => {
-                        prev_frame.get(x as usize, term_y) != frame.get(x as usize, term_y)
-                    }
-                } {
-                    let row = Y_OFFSET + HEADER_SIZE + term_y;
-                    let col = X_OFFSET + x as usize;
+                let cell = TerminalCell::new(top, bottom);
+                if self
+                    .frame
+                    .as_ref()
+                    .is_none_or(|f| f.get(grid_x as usize, term_y) != &cell)
+                {
                     self.move_cursor(out, row, col);
-                    self.render_cell(out, frame.get(x as usize, term_y));
+                    self.render_cell(out, &cell);
+                    if let Some(frame) = self.frame.as_mut() {
+                        frame.set(grid_x as usize, term_y, cell);
+                    }
                 }
             }
         }
-        self.work_frame = self.displayed_frame.replace(frame);
     }
-    fn geometry_changed(&self, grid: &Grid) -> bool {
-        self.displayed_frame.as_ref().is_some_and(|f| {
-            !f.has_dimensions(grid.width() as usize, Self::effective_frame_height(grid))
-        })
-    }
-    fn prepare_work_frame(&mut self, grid: &Grid) -> Frame {
-        let geometry_changed = self.geometry_changed(grid);
-        if geometry_changed {
-            self.displayed_frame = None;
-        }
-        if self.work_frame.is_none() || geometry_changed {
-            self.work_frame = Option::from(Frame::new(
-                grid.width() as usize,
-                Self::effective_frame_height(grid),
-            ))
-        }
-        self.work_frame.take().unwrap()
-    }
-    fn effective_frame_height(grid: &Grid) -> usize {
+    fn scaled_frame_height(grid: &Grid) -> usize {
         // frame row is splitted to 2 halves, which effectively make it 2 rows in a row.
         ((grid.height() + SCALE - 1) / SCALE) as usize
+    }
+    fn clear<W: Write>(&self, out: &mut W) {
+        write!(out, "\x1B[2J").expect("could not clear screen");
     }
     fn render_cell<W: Write>(&self, out: &mut W, terminal_cell: &TerminalCell) {
         match (
@@ -194,9 +257,6 @@ impl Frame {
     }
     fn index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
-    }
-    pub fn has_dimensions(&self, width: usize, height: usize) -> bool {
-        self.height == height && self.width == width
     }
     pub fn get(&self, x: usize, y: usize) -> &TerminalCell {
         &self.cells[self.index(x, y)]
@@ -281,7 +341,7 @@ impl RenderCell {
 mod tests {
     use super::{
         BG_BRIGHT_BLACK, BG_GREEN, BG_RED, Color, FG_BRIGHT_BLACK, FG_BRIGHT_GREEN, FG_DIM,
-        FG_GREEN, FG_RED, RESET, RenderCell, Renderer,
+        FG_GREEN, FG_RED, RESET, RenderCell, Renderer, TerminalSize,
     };
     use crate::domain::game::Game;
     use crate::domain::grid::{Grid, Point};
@@ -303,30 +363,59 @@ mod tests {
         Game::new(grid, snake, 0)
     }
 
+    fn game_with_score(score: usize) -> Game {
+        let geometry = GridGeometry::new(5, 5);
+        let grid = Grid::new(geometry);
+        let mut snake = Snake::new(point(2, 2), geometry).expect("snake should fit in grid");
+        for _ in 0..score {
+            snake.grow();
+        }
+        Game::new(grid, snake, 0)
+    }
+
     #[test]
-    fn render_accepts_grid_snake_and_score() {
+    fn render_reads_score_from_game() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(7);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &game, 7);
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}7{RESET}")));
+        assert!(output.contains(&format!("{FG_DIM}Score:{RESET} {FG_GREEN}7{RESET}")));
         assert!(output.contains("\x1B[2;2H"));
     }
 
     #[test]
     fn render_header_writes_dimmed_score_line() {
-        let renderer = Renderer::new();
+        let renderer = Renderer::default();
         let mut out = Vec::new();
 
         renderer.render_header(&mut out, 3);
 
         assert_eq!(
             String::from_utf8(out).expect("header should be utf-8"),
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}3{RESET}")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}3{RESET}")
+        );
+    }
+
+    #[test]
+    fn render_header_truncates_to_terminal_width() {
+        let renderer = Renderer {
+            terminal_size: Some(TerminalSize {
+                width: 8,
+                height: 10,
+            }),
+            ..Renderer::default()
+        };
+        let mut out = Vec::new();
+
+        renderer.render_header(&mut out, 3);
+
+        assert_eq!(
+            String::from_utf8(out).expect("header should be utf-8"),
+            format!("\x1B[1;2H{FG_DIM}Score:>{RESET}")
         );
     }
 
@@ -352,16 +441,16 @@ mod tests {
     #[test]
     fn render_writes_clear_sequence_header_and_grid() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(1);
         let mut out = Vec::new();
 
-        renderer.render_to(&mut out, &game, 1);
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
 
         assert!(output.starts_with("\x1B[2J\x1B[1;2H"));
         assert_eq!(output.matches("\x1B[2J").count(), 1);
-        assert!(output.contains(&format!("{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}")));
+        assert!(output.contains(&format!("{FG_DIM}Score:{RESET} {FG_GREEN}1{RESET}")));
         assert!(output.contains("\x1B[2;2H"));
         assert!(output.ends_with("\x1B[5;2H"));
         assert!(output.contains("█"));
@@ -370,19 +459,19 @@ mod tests {
     #[test]
     fn second_render_with_same_state_updates_only_header_and_footer_cursor() {
         let mut renderer = Renderer::new();
-        let game = game_at(Point::new(2, 2));
+        let game = game_with_score(1);
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &game, 1);
-        renderer.render_to(&mut second_out, &game, 1);
+        renderer.render_to(&mut first_out, &game);
+        renderer.render_to(&mut second_out, &game);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
         assert!(!output.contains("\x1B[2J"));
         assert_eq!(
             output,
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}1{RESET}\x1B[5;2H")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}1{RESET}\x1B[5;2H")
         );
     }
 
@@ -394,8 +483,8 @@ mod tests {
         let mut first_out = Vec::new();
         let mut second_out = Vec::new();
 
-        renderer.render_to(&mut first_out, &first_game, 0);
-        renderer.render_to(&mut second_out, &second_game, 0);
+        renderer.render_to(&mut first_out, &first_game);
+        renderer.render_to(&mut second_out, &second_game);
 
         let output = String::from_utf8(second_out).expect("render should be utf-8");
 
@@ -403,7 +492,7 @@ mod tests {
         assert_eq!(
             output,
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[5;2H"
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[5;2H"
             )
         );
     }
@@ -415,36 +504,36 @@ mod tests {
         let mut renderer = Renderer::new();
         let mut game = game_with_geometry(8, 8, point(3, 2));
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
 
         game.apply_command(GameCommand::TogglePause);
         out.clear();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;2H",
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;3H{BG_BRIGHT_BLACK}{}Paused{RESET}\x1B[6;2H",
                 super::FG_WHITE
             )
         );
 
         // Render twice while paused to exercise both reused frame buffers.
-        renderer.render_to(&mut Vec::new(), &game, 0);
+        renderer.render_to(&mut Vec::new(), &game);
         game.apply_command(GameCommand::TogglePause);
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
+                "\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[3;3H \x1B[3;4H \x1B[3;5H{FG_BRIGHT_GREEN}▀{RESET}\x1B[3;6H \x1B[3;7H \x1B[3;8H \x1B[6;2H"
             )
         );
 
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, 0);
+        renderer.render_to(&mut out, &game);
         assert_eq!(
             String::from_utf8(out).unwrap(),
-            format!("\x1B[1;2H{FG_DIM}Score{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
+            format!("\x1B[1;2H{FG_DIM}Score:{RESET} {FG_GREEN}0{RESET}\x1B[6;2H")
         );
     }
 
@@ -452,14 +541,14 @@ mod tests {
     fn game_over_message_is_centered_after_collision() {
         let mut renderer = Renderer::new();
         let mut game = game_with_geometry(13, 6, point(11, 2));
-        renderer.render_to(&mut Vec::new(), &game, 0);
+        renderer.render_to(&mut Vec::new(), &game);
 
         assert!(matches!(
             game.tick(),
             crate::domain::game::GameState::GameOver
         ));
         let mut out = Vec::new();
-        renderer.render_to(&mut out, &game, game.score());
+        renderer.render_to(&mut out, &game);
 
         let output = String::from_utf8(out).expect("render should be utf-8");
         assert!(!output.contains("\x1B[2J"));
@@ -477,11 +566,11 @@ mod tests {
         let mut renderer = Renderer::new();
         let mut game = game_at(point(2, 2));
         let mut running = Vec::new();
-        renderer.render_to(&mut running, &game, 0);
+        renderer.render_to(&mut running, &game);
 
         game.apply_command(GameCommand::TogglePause);
         let mut paused = Vec::new();
-        Renderer::new().render_to(&mut paused, &game, 0);
+        Renderer::new().render_to(&mut paused, &game);
 
         assert_eq!(paused, running);
     }
@@ -493,13 +582,13 @@ mod tests {
         for (width, height) in [(5, 5), (8, 5), (8, 8), (5, 5)] {
             let game = game_with_geometry(width, height, point(2, 2));
             let mut resized = Vec::new();
-            renderer.render_to(&mut resized, &game, 0);
+            renderer.render_to(&mut resized, &game);
             let mut fresh = Vec::new();
-            Renderer::new().render_to(&mut fresh, &game, 0);
+            Renderer::new().render_to(&mut fresh, &game);
             assert_eq!(resized, fresh, "resizing to {width}x{height}");
 
             let mut unchanged = Vec::new();
-            renderer.render_to(&mut unchanged, &game, 0);
+            renderer.render_to(&mut unchanged, &game);
             let output = String::from_utf8(unchanged).unwrap();
             assert!(!output.contains("\x1B[2J"));
             assert!(!output.contains('█'));
