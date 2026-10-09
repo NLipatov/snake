@@ -70,6 +70,8 @@ async function startGame(t) {
     init: async () => {},
     getComputedStyle: () => ({ getPropertyValue: () => "#000" }),
   });
+  // Check browser compatibility in every scenario without changing Node's built-ins.
+  vm.runInContext("delete Object.hasOwn; delete Array.prototype.at;", context);
   vm.runInContext(source, context, { filename: "web/main.js" });
   await new Promise((resolve) => setImmediate(resolve));
   t.after(() => vm.runInContext("game.free()", context));

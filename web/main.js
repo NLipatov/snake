@@ -270,11 +270,14 @@ function queueDirection(direction) {
   if (!isReady() || paused || gameOver) {
     return;
   }
-  if (!Object.hasOwn(OPPOSITE_DIRECTION, direction) || pendingDirections.length >= 2) {
+  if (
+    !Object.prototype.hasOwnProperty.call(OPPOSITE_DIRECTION, direction) ||
+    pendingDirections.length >= 2
+  ) {
     return;
   }
 
-  const previousDirection = pendingDirections.at(-1) ?? currentDirection;
+  const previousDirection = pendingDirections[pendingDirections.length - 1] ?? currentDirection;
   if (direction === previousDirection || direction === OPPOSITE_DIRECTION[previousDirection]) {
     return;
   }
