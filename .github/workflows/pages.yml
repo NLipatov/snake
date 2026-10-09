@@ -40,6 +40,14 @@ jobs:
       - name: Build WebAssembly bundle
         run: wasm-pack build --release --target web --out-dir web/pkg
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Test web input
+        run: node --test tests/web-input.test.mjs
+
       - name: Install SVG renderer
         run: |
           sudo apt-get update

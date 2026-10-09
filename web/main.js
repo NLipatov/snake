@@ -4,6 +4,7 @@ const CELL_SIZE = 18;
 const TICK_MS = 115;
 const RESTART_PRESS_MS = 140;
 const ENTITY_INSET = 1.3;
+const OPPOSITE_DIRECTION = { up: "down", down: "up", left: "right", right: "left" };
 
 const canvas = document.getElementById("board");
 const context = canvas.getContext("2d");
@@ -29,7 +30,8 @@ let paused = false;
 let gameOver = false;
 let timerId;
 let restartPressTimer;
-let pendingDirection;
+const pendingDirections = [];
+let currentDirection;
 let boardWidth = 0;
 let boardHeight = 0;
 let currentPalette;
@@ -170,7 +172,8 @@ function createGame() {
   game = new WebGame();
   paused = false;
   gameOver = false;
-  pendingDirection = undefined;
+  pendingDirections.length = 0;
+  currentDirection = "right"; // WebGame's initial direction.
   boardWidth = game.width();
   boardHeight = game.height();
 
@@ -209,9 +212,9 @@ function step() {
     return;
   }
 
-  if (pendingDirection !== undefined) {
-    applyDirection(pendingDirection);
-    pendingDirection = undefined;
+  if (pendingDirections.length > 0) {
+    currentDirection = pendingDirections.shift();
+    applyDirection(currentDirection);
   }
 
   const alive = game.tick();
@@ -267,15 +270,16 @@ function queueDirection(direction) {
   if (!isReady() || paused || gameOver) {
     return;
   }
-  if (!["up", "down", "left", "right"].includes(direction)) {
+  if (!Object.hasOwn(OPPOSITE_DIRECTION, direction) || pendingDirections.length >= 2) {
     return;
   }
 
-  if (pendingDirection !== undefined) {
+  const previousDirection = pendingDirections.at(-1) ?? currentDirection;
+  if (direction === previousDirection || direction === OPPOSITE_DIRECTION[previousDirection]) {
     return;
   }
 
-  pendingDirection = direction;
+  pendingDirections.push(direction);
 }
 
 function handleDirection(code) {
@@ -305,7 +309,8 @@ async function main() {
 }
 
 window.addEventListener("keydown", (event) => {
-  const navigationalKey = event.code.startsWith("Arrow") || ["Space", "Escape"].includes(event.code);
+  const navigationalKey =
+    event.code.startsWith("Arrow") || ["Space", "Escape"].includes(event.code);
   if (navigationalKey) {
     event.preventDefault();
   }
